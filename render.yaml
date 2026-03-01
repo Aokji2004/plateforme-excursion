@@ -1,0 +1,40 @@
+# Blueprint Render - Plateforme Excursion OCP
+# https://docs.render.com/blueprint-spec
+# Déployer depuis le dashboard Render : New > Blueprint > Connect repo et sélectionner ce fichier.
+
+databases:
+  - name: ocp-excursions-db
+    databaseName: ocp_excursions
+    plan: free
+    # Remplacer par plan: starter ou supérieur en production
+
+services:
+  # Backend API (Node.js + Express + Prisma)
+  - type: web
+    name: ocp-excursions-api
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm run start
+    preDeployCommand: npx prisma migrate deploy
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ocp-excursions-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: NODE_ENV
+        value: production
+
+  # Frontend Next.js
+  - type: web
+    name: ocp-excursions-web
+    runtime: node
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      # À définir dans le dashboard : https://ocp-excursions-api.onrender.com (URL de votre backend)
+      - key: NEXT_PUBLIC_API_BASE_URL
+        sync: false

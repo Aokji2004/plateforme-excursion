@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+/* Thème clair OCP : fond clair, texte foncé, accents verts */
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  background-color: #f3f4f6; /* gris très clair */
+  color: #0f172a; /* slate-900 */
+}

@@ -1,0 +1,2 @@
+// Placez ici le logo OCP officiel (exemple: logo-ocp.png)
+// Ajoutez le fichier image du logo OCP dans ce dossier pour l'utiliser dans le dashboard.

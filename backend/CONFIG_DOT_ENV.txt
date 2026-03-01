@@ -1,0 +1,16 @@
+IMPORTANT - Erreur de connexion au login ?
+
+Le backend doit utiliser la base "excursionocp" et le mot de passe "aya".
+
+Option 1 - Mettre a jour le fichier .env (recommandé)
+  Ouvrez backend\.env et remplacez tout le contenu par :
+
+DATABASE_URL="postgresql://postgres:aya@localhost:5432/excursionocp"
+JWT_SECRET=un_super_secret_jwt_pour_ocp
+PORT=4000
+
+  Puis redémarrez le backend (Ctrl+C puis npm run dev).
+
+Option 2 - Lancer avec le script
+  Dans le dossier backend, exécutez : .\start-backend.ps1
+  Ce script utilise la bonne base sans modifier .env.
