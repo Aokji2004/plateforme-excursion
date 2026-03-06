@@ -20,7 +20,7 @@ Cette application permet de gérer les inscriptions aux excursions organisées p
 - 🎲 Système de sélection automatique basé sur les points
 - 📋 Gestion des inscriptions et listes d'attente
 - ✅ Confirmation des paiements
-- 📊 Statistiques et rapports
+- 📊 **Tableau de bord** : statistiques (agents, situation familiale, enfants), graphiques (activités par statut/type, inscriptions), activités clôturées récentes
 - 🔄 Promotion depuis la liste d'attente
 - ❌ Refus de participants
 
