@@ -24,14 +24,10 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchInput, setSearchInput] = useState(""); // valeur affichée (avec debounce vers searchQuery)
   const [saving, setSaving] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<number | null>(null);
-  const [fillingFamilyStatus, setFillingFamilyStatus] = useState(false);
-  const [fillFamilyMessage, setFillFamilyMessage] = useState<string | null>(null);
 
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -137,11 +133,7 @@ export default function AdminUsersPage() {
 
     async function load() {
       try {
-        const url = new URL(`${API_BASE_URL}/admin/users`);
-        if (searchQuery.trim()) {
-          url.searchParams.set("search", searchQuery.trim());
-        }
-        const res = await fetch(url.toString(), {
+        const res = await fetch(`${API_BASE_URL}/admin/users`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -159,15 +151,7 @@ export default function AdminUsersPage() {
     }
 
     load();
-  }, [router, searchQuery]);
-
-  // Debounce de la recherche (300 ms)
-  useEffect(() => {
-    const t = setTimeout(() => setSearchQuery(searchInput), 300);
-    return () => clearTimeout(t);
-  }, [searchInput]);
-
-  // Les situations familiales sont remplies automatiquement par le backend lors du GET /admin/users
+  }, [router]);
 
   async function handleSubmitUser(e: React.FormEvent) {
     e.preventDefault();
@@ -260,39 +244,6 @@ export default function AdminUsersPage() {
     }
   }
 
-  async function handleFillFamilyStatus() {
-    const token = typeof window !== "undefined" ? localStorage.getItem("ocp_token") : null;
-    if (!token) {
-      router.replace("/login");
-      return;
-    }
-    setFillingFamilyStatus(true);
-    setFillFamilyMessage(null);
-    setError(null);
-    try {
-      const res = await fetch(`${API_BASE_URL}/admin/users/fill-family-status`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || "Erreur lors de l'attribution");
-      setFillFamilyMessage(
-        data.updated > 0 ? data.message || `${data.updated} situation(s) attribuée(s).` : "Aucune situation à attribuer."
-      );
-      const listRes = await fetch(`${API_BASE_URL}/admin/users`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (listRes.ok) {
-        const list = await listRes.json();
-        setUsers(list);
-      }
-    } catch (e: any) {
-      setError(e.message || "Erreur lors de l'attribution des situations familiales");
-    } finally {
-      setFillingFamilyStatus(false);
-    }
-  }
-
   async function handleDeleteUser(userId: number) {
     const token =
       typeof window !== "undefined"
@@ -358,96 +309,17 @@ export default function AdminUsersPage() {
         </div>
       </header>
       <main className="max-w-6xl mx-auto px-6 py-6 space-y-6">
-        {/* Encadré : attribution automatique (toujours visible) */}
-        <div className="rounded-lg border-2 border-[#176139]/30 bg-[#176139]/5 p-4">
-          <p className="font-medium text-[#176139] mb-1">
-            Attribution automatique de la situation familiale
-          </p>
-          <p className="text-sm text-slate-700">
-            À chaque chargement de cette page, les agents qui n&apos;ont pas encore de situation familiale reçoivent une attribution automatique (Marié(e), Célibataire, Divorcé(e), Veuf(ve)). Les données apparaissent dans la colonne <strong>Situation Familiale</strong> du tableau ci-dessous. Si la colonne est encore vide, actualisez la page (F5) ou cliquez sur le bouton ci-dessous.
-          </p>
-        </div>
-
         {error && (
           <div className="mb-4 rounded border border-red-200 bg-red-50 text-red-700 px-3 py-2 text-sm">
             {error}
           </div>
         )}
-        {fillFamilyMessage && (
-          <div className="mb-4 rounded border border-emerald-200 bg-emerald-50 text-emerald-800 px-3 py-2 text-sm flex items-center justify-between">
-            <span>{fillFamilyMessage}</span>
-            <button
-              type="button"
-              onClick={() => setFillFamilyMessage(null)}
-              className="text-emerald-600 hover:text-emerald-800"
-              aria-label="Fermer"
-            >
-              ×
-            </button>
-          </div>
-        )}
-
-        {/* Message et bouton pour remplir les situations familiales vides */}
-        <div className={`mb-4 p-4 rounded-lg border-2 ${users.some((u) => !u.maritalStatus) ? "border-amber-300 bg-amber-50 text-amber-900" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
-          {users.some((u) => !u.maritalStatus) ? (
-            <>
-              <p className="font-medium mb-1">La colonne « Situation Familiale » est vide.</p>
-              <p className="text-sm mb-3">
-                <strong>{users.filter((u) => !u.maritalStatus).length} utilisateur(s)</strong> n&apos;ont pas encore de situation familiale. Cliquez sur le bouton pour leur en attribuer une automatiquement (Marié(e), Célibataire, Divorcé(e), Veuf(ve)).
-              </p>
-            </>
-          ) : (
-            <p className="text-sm mb-3">
-              Tous les utilisateurs ont une situation familiale. Vous pouvez réattribuer pour les nouveaux comptes si besoin.
-            </p>
-          )}
-          <button
-            type="button"
-            onClick={handleFillFamilyStatus}
-            disabled={fillingFamilyStatus}
-            className={`px-4 py-2 rounded text-white text-sm font-medium disabled:opacity-60 ${users.some((u) => !u.maritalStatus) ? "bg-amber-600 hover:bg-amber-700" : "bg-sky-600 hover:bg-sky-700"}`}
-          >
-            {fillingFamilyStatus ? "Attribution en cours…" : "Attribuer les situations familiales manquantes"}
-          </button>
-        </div>
 
         <section className="border border-slate-200 bg-white rounded-lg p-4 shadow-sm">
           <h2 className="text-lg font-medium mb-4">Liste des utilisateurs</h2>
-          <div className="flex justify-center mb-6">
-            <div className="flex items-center gap-2 w-full max-w-md">
-              <label htmlFor="user-search" className="sr-only">
-                Rechercher par matricule ou nom / prénom
-              </label>
-              <input
-                id="user-search"
-                type="search"
-                placeholder="Matricule, nom ou prénom..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                className="flex-1 min-w-0 rounded-lg border-2 border-slate-300 px-4 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 shadow-sm"
-                aria-label="Rechercher par matricule ou nom prénom"
-              />
-              {(searchInput || searchQuery) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchInput("");
-                    setSearchQuery("");
-                  }}
-                  className="flex-shrink-0 w-10 h-10 rounded-lg border-2 border-slate-300 text-slate-600 hover:bg-slate-50 text-lg font-medium leading-none"
-                  title="Effacer la recherche"
-                  aria-label="Effacer la recherche"
-                >
-                  ×
-                </button>
-              )}
-            </div>
-          </div>
           {users.length === 0 ? (
             <p className="text-sm text-slate-600">
-              {searchQuery.trim()
-                ? "Aucun utilisateur ne correspond à votre recherche."
-                : "Aucun utilisateur pour le moment."}
+              Aucun utilisateur pour le moment.
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -523,23 +395,14 @@ export default function AdminUsersPage() {
                         {u.points}
                       </td>
                       <td className="border border-slate-200 px-2 py-1">
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
                           <button
                             onClick={() => openEditModal(u.id)}
                             className="px-2 py-1 rounded bg-blue-600 text-white text-xs hover:bg-blue-700"
-                            title="Modifier (situation familiale, conjoint, etc.)"
+                            title="Modifier"
                           >
                             Modifier
                           </button>
-                          {u.maritalStatus === "MARRIED" && (
-                            <button
-                              onClick={() => router.push(`/admin/children?userId=${u.id}`)}
-                              className="px-2 py-1 rounded bg-emerald-600 text-white text-xs hover:bg-emerald-700"
-                              title="Gérer les enfants"
-                            >
-                              Enfants
-                            </button>
-                          )}
                           <button
                             onClick={() => setDeletingUserId(u.id)}
                             className="px-2 py-1 rounded bg-red-600 text-white text-xs hover:bg-red-700"
@@ -558,7 +421,7 @@ export default function AdminUsersPage() {
         </section>
       </main>
       {isModalOpen && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 backdrop-blur-[1px]">
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl">
             <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
               <h2 className="text-lg font-semibold text-slate-900">
@@ -773,26 +636,6 @@ export default function AdminUsersPage() {
                 </div>
               </div>
 
-              {/* Lien vers la gestion des enfants pour les employés mariés */}
-              {(editingUserId && maritalStatus === "MARRIED") && (
-                <div className="border border-emerald-200 rounded-lg bg-emerald-50 px-4 py-3">
-                  <p className="text-sm text-emerald-800 mb-2">
-                    Pour enregistrer ou modifier les enfants de cet employé marié, utilisez la page <strong>Gestion des Enfants</strong>.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsModalOpen(false);
-                      resetForm();
-                      router.push(`/admin/children?userId=${editingUserId}`);
-                    }}
-                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700"
-                  >
-                    Gérer les enfants de cet employé
-                  </button>
-                </div>
-              )}
-
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
@@ -818,7 +661,7 @@ export default function AdminUsersPage() {
         </div>
       )}
       {deletingUserId && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 backdrop-blur-[1px]">
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
             <div className="px-5 py-4 border-b border-slate-200">
               <h2 className="text-lg font-semibold text-slate-900">
