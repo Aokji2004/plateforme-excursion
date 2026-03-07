@@ -2,8 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/router";
 import { AdminLayout } from "../../components/AdminLayout";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000";
+import { API_BASE_URL } from "../../utils/config";
 
 interface Excursion {
   id: number;
@@ -121,7 +120,16 @@ export default function AdminApplicationsPage() {
         setUsers(data);
       }
     } catch (e: any) {
-      setError(e.message || "Erreur de chargement");
+      const msg = e?.message || "Erreur de chargement";
+      const isNetworkError =
+        msg === "Failed to fetch" ||
+        msg === "NetworkError when attempting to fetch resource" ||
+        e?.name === "TypeError";
+      setError(
+        isNetworkError
+          ? "Impossible de joindre le serveur. Vérifiez que le backend est démarré (port 4000)."
+          : msg
+      );
       setApplications([]);
     } finally {
       setLoading(false);

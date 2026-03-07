@@ -3,8 +3,7 @@ import { useRouter } from "next/router";
 import { AdminLayout } from "../../components/AdminLayout";
 import { getCityImageUrl, fetchCityImageFromUnsplash } from "../../utils/cityImages";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000";
+import { API_BASE_URL } from "../../utils/config";
 
 interface ActivityTypeOption {
   id: number;
@@ -136,7 +135,13 @@ export default function AdminActivitiesPage() {
           setActivityTypes(Array.from(byTitle.values()));
         }
       } catch (e: any) {
-        setError(e.message);
+        const msg = e?.message || "";
+        const isNetworkError = msg === "Failed to fetch" || msg === "NetworkError when attempting to fetch resource" || e?.name === "TypeError";
+        setError(
+          isNetworkError
+            ? "Impossible de joindre le serveur. Vérifiez que le backend est démarré (dans le dossier backend : npm run dev) et que l'API est sur http://localhost:4000."
+            : msg
+        );
       } finally {
         setLoading(false);
       }
@@ -264,7 +269,9 @@ export default function AdminActivitiesPage() {
       setImageUrl(excursion.imageUrl || "");
       setIsModalOpen(true);
     } catch (e: any) {
-      setError(e.message || "Erreur lors du chargement de l'activité");
+      const msg = e?.message || "Erreur lors du chargement de l'activité";
+      const isNetworkError = msg === "Failed to fetch" || msg === "NetworkError when attempting to fetch resource" || e?.name === "TypeError";
+      setError(isNetworkError ? "Impossible de joindre le serveur. Vérifiez que le backend est démarré (dans le dossier backend : npm run dev) et que l'API est sur http://localhost:4000." : msg);
     }
   }
 
@@ -408,12 +415,9 @@ export default function AdminActivitiesPage() {
       resetForm();
       setIsModalOpen(false);
     } catch (e: any) {
-      setError(
-        e.message ||
-          (editingExcursionId
-            ? "Erreur lors de la modification de l'activité"
-            : "Erreur lors de la création de l'activité")
-      );
+      const msg = e?.message || (editingExcursionId ? "Erreur lors de la modification de l'activité" : "Erreur lors de la création de l'activité");
+      const isNetworkError = msg === "Failed to fetch" || msg === "NetworkError when attempting to fetch resource" || e?.name === "TypeError";
+      setError(isNetworkError ? "Impossible de joindre le serveur. Vérifiez que le backend est démarré (dans le dossier backend : npm run dev) et que l'API est sur http://localhost:4000." : msg);
     } finally {
       setSaving(false);
     }
@@ -450,7 +454,9 @@ export default function AdminActivitiesPage() {
       setExcursions((prev) => prev.filter((e) => e.id !== excursionId));
       setDeletingExcursionId(null);
     } catch (e: any) {
-      setError(e.message || "Erreur lors de la suppression de l'activité");
+      const msg = e?.message || "Erreur lors de la suppression de l'activité";
+      const isNetworkError = msg === "Failed to fetch" || msg === "NetworkError when attempting to fetch resource" || e?.name === "TypeError";
+      setError(isNetworkError ? "Impossible de joindre le serveur. Vérifiez que le backend est démarré (dans le dossier backend : npm run dev) et que l'API est sur http://localhost:4000." : msg);
     } finally {
       setSaving(false);
     }

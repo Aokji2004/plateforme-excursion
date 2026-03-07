@@ -1,8 +1,6 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/router";
-
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000";
+import { API_BASE_URL } from "../utils/config";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -43,7 +41,16 @@ export default function LoginPage() {
         router.push("/employee/dashboard");
       }
     } catch (err: any) {
-      setError(err.message || "Erreur de connexion");
+      const msg = err?.message || "Erreur de connexion";
+      const isNetworkError =
+        msg === "Failed to fetch" ||
+        msg === "NetworkError when attempting to fetch resource" ||
+        err?.name === "TypeError";
+      setError(
+        isNetworkError
+          ? "Impossible de joindre le serveur. Démarrez le backend (à la racine : npm run dev)."
+          : msg
+      );
     } finally {
       setLoading(false);
     }

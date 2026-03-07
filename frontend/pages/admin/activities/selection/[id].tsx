@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { AdminLayout } from "../../../../components/AdminLayout";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000";
+import { API_BASE_URL } from "../../../../utils/config";
 
 interface Excursion {
   id: number;
@@ -59,6 +58,8 @@ export default function SelectionPage() {
   const [paymentDeadline, setPaymentDeadline] = useState("");
 
   useEffect(() => {
+    if (!router.isReady) return;
+
     const token =
       typeof window !== "undefined"
         ? localStorage.getItem("ocp_token")
@@ -79,56 +80,94 @@ export default function SelectionPage() {
       return;
     }
 
-    if (!id || typeof id !== "string") return;
+    const excursionId = Array.isArray(id) ? id[0] : id;
+    if (!excursionId || typeof excursionId !== "string") {
+      setLoading(false);
+      setError("Identifiant d'activité manquant.");
+      return;
+    }
 
-    loadData(token);
-  }, [id, router]);
+    let cancelled = false;
+    (async () => {
+      try {
+        await loadData(token, excursionId);
+      } catch (_) {
+        if (!cancelled) {
+          try {
+            setError("Impossible de joindre le serveur. Vérifiez que le backend est démarré (port 4000).");
+          } catch (_) {}
+          try {
+            setLoading(false);
+          } catch (_) {}
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, router.isReady, router]);
 
-  async function loadData(token: string) {
+  async function loadData(token: string, excursionId: string): Promise<void> {
+    if (!API_BASE_URL) {
+      try {
+        setError("URL de l'API non configurée. Vérifiez NEXT_PUBLIC_API_BASE_URL.");
+        setLoading(false);
+      } catch (_) {}
+      return;
+    }
     try {
       setLoading(true);
-      
-      // Charger l'excursion avec un paramètre de cache-busting
-      const resExcursion = await fetch(`${API_BASE_URL}/excursions/${id}?t=${Date.now()}`, {
-        headers: { 
+      setError(null);
+
+      const resExcursion = await fetch(`${API_BASE_URL}/excursions/${excursionId}?t=${Date.now()}`, {
+        headers: {
           Authorization: `Bearer ${token}`,
-          "Cache-Control": "no-cache, no-store, must-revalidate"
+          "Cache-Control": "no-cache, no-store, must-revalidate",
         },
       });
 
-      if (resExcursion.ok) {
-        const data = await resExcursion.json();
-        setExcursion(data);
-        setMaxPlaces(String(data.totalSeats));
-      } else {
+      if (!resExcursion.ok) {
         throw new Error("Erreur lors du chargement de l'excursion");
       }
+      const dataExc = await resExcursion.json();
+      setExcursion(dataExc);
+      setMaxPlaces(String(dataExc.totalSeats || ""));
 
-      // Charger TOUS les participants avec cache-busting
       const resParticipants = await fetch(
-        `${API_BASE_URL}/admin/selection/participants/${id}?t=${Date.now()}`,
+        `${API_BASE_URL}/admin/selection/participants/${excursionId}?t=${Date.now()}`,
         {
-          headers: { 
+          headers: {
             Authorization: `Bearer ${token}`,
-            "Cache-Control": "no-cache, no-store, must-revalidate"
+            "Cache-Control": "no-cache, no-store, must-revalidate",
           },
         }
       );
 
-      if (resParticipants.ok) {
-        const data = await resParticipants.json();
-        // Force React à mettre à jour en créant un nouvel objet
-        setParticipantsData(JSON.parse(JSON.stringify(data)));
-      } else {
+      if (!resParticipants.ok) {
         throw new Error("Erreur lors du chargement des participants");
       }
-      
-      setError(null);
-    } catch (e: any) {
-      console.error("Erreur loadData:", e);
-      setError(e.message);
+      const dataPart = await resParticipants.json();
+      setParticipantsData(JSON.parse(JSON.stringify(dataPart)));
+    } catch (e: unknown) {
+      try {
+        const err = e as { message?: string; name?: string };
+        const msg = String(err?.message || "");
+        const isNetworkError =
+          msg === "Failed to fetch" ||
+          (typeof msg === "string" && msg.includes("NetworkError")) ||
+          err?.name === "TypeError";
+        setError(
+          isNetworkError
+            ? "Impossible de joindre le serveur. Vérifiez que le backend est démarré (port 4000)."
+            : msg || "Erreur de chargement"
+        );
+      } catch (_) {
+        setError("Erreur de chargement");
+      }
     } finally {
-      setLoading(false);
+      try {
+        setLoading(false);
+      } catch (_) {}
     }
   }
 
@@ -276,7 +315,8 @@ export default function SelectionPage() {
 
       // Forcer refresh
       await new Promise(resolve => setTimeout(resolve, 800));
-      await loadData(token);
+      const excursionId = Array.isArray(id) ? id[0] : id;
+      if (excursionId && typeof excursionId === "string") await loadData(token, excursionId);
       
       setError(null);
       const pointsMsg = typeof data.pointsCreditedCount === "number" && data.pointsCreditedCount > 0

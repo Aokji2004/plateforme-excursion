@@ -11,8 +11,7 @@ import {
   type ExportColumn,
 } from "../../../utils/exportTable";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000";
+import { API_BASE_URL } from "../../../utils/config";
 
 interface Excursion {
   id: number;
@@ -38,6 +37,7 @@ interface Excursion {
   description?: string | null;
   imageUrl?: string | null;
   agentTypes?: string | null;
+  selectionStatus?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "CLOSED";
 }
 
 interface Application {
@@ -180,6 +180,8 @@ export default function ActivityDetailsPage() {
   const [replaceApplicationIdForPromote, setReplaceApplicationIdForPromote] = useState<number | null>(null);
 
   useEffect(() => {
+    if (!router.isReady) return;
+
     const token =
       typeof window !== "undefined"
         ? localStorage.getItem("ocp_token")
@@ -200,19 +202,30 @@ export default function ActivityDetailsPage() {
       return;
     }
 
-    if (!id || typeof id !== "string") return;
+    const excursionId = Array.isArray(id) ? id[0] : id;
+    if (!excursionId || typeof excursionId !== "string") {
+      setLoading(false);
+      setError("Identifiant d'activité manquant.");
+      return;
+    }
 
     async function load() {
       try {
+        setError(null);
         // Charger l'excursion avec cache-busting
-        const resExcursion = await fetch(`${API_BASE_URL}/excursions/${id}?t=${Date.now()}&nocache=${Math.random()}`, {
+        const resExcursion = await fetch(`${API_BASE_URL}/excursions/${excursionId}?t=${Date.now()}&nocache=${Math.random()}`, {
           headers: {
             Authorization: `Bearer ${token}`,
             "Cache-Control": "no-cache, no-store, must-revalidate"
           },
         });
         if (!resExcursion.ok) {
-          throw new Error("Erreur lors du chargement de l'activité");
+          const errBody = await resExcursion.json().catch(() => ({}));
+          const msg = errBody?.message || errBody?.error;
+          if (resExcursion.status === 404) {
+            throw new Error(msg || "Activité introuvable.");
+          }
+          throw new Error(msg || "Erreur lors du chargement de l'activité");
         }
         const excursionData = await resExcursion.json();
         // Si l'excursion n'a pas d'image, en générer une basée sur la ville
@@ -227,7 +240,7 @@ export default function ActivityDetailsPage() {
 
         // Charger les applications avec cache-busting
         const resApplications = await fetch(
-          `${API_BASE_URL}/excursions/${id}/applications?t=${Date.now()}&nocache=${Math.random()}`,
+          `${API_BASE_URL}/excursions/${excursionId}/applications?t=${Date.now()}&nocache=${Math.random()}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -252,14 +265,20 @@ export default function ActivityDetailsPage() {
           setUsers(usersData);
         }
       } catch (e: any) {
-        setError(e.message);
+        const msg = e?.message || "";
+        const isNetworkError = msg === "Failed to fetch" || msg === "NetworkError when attempting to fetch resource" || e?.name === "TypeError";
+        setError(
+          isNetworkError
+            ? "Impossible de joindre le serveur. Vérifiez que le backend est démarré (dans le dossier backend : npm run dev) et que l'API est sur http://localhost:4000."
+            : msg
+        );
       } finally {
         setLoading(false);
       }
     }
 
     load();
-  }, [id, router]);
+  }, [id, router.isReady, router]);
 
   // Calculer les comptages
   useEffect(() => {

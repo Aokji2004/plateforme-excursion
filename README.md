@@ -26,19 +26,10 @@ Cette application permet de gérer les inscriptions aux excursions organisées p
 
 ## 🛠️ Technologies
 
-### Backend
-- **Node.js** avec **Express**
-- **TypeScript**
-- **Prisma** (ORM)
-- **PostgreSQL** (Base de données)
-- **JWT** (Authentification)
-- **bcryptjs** (Hachage des mots de passe)
+- **Backend** : Node.js, Express, TypeScript, Prisma, PostgreSQL, JWT, bcryptjs
+- **Frontend** : Next.js 16, React 19, TypeScript, Tailwind CSS 4
 
-### Frontend
-- **Next.js 16**
-- **React 19**
-- **TypeScript**
-- **Tailwind CSS 4**
+Le dashboard s’exécute en local sur **localhost** (backend + frontend).
 
 ## 📦 Installation
 
@@ -106,6 +97,21 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:4000
 ```
    - Sans cette variable, le frontend utilise par défaut `http://localhost:4000`.
 
+## 📂 Après un clone Git (ou copie du projet)
+
+Dépôt : `https://github.com/Aokji2004/plateforme-excursion.git`
+
+### Ordre recommandé
+
+1. **Backend** : `cd backend` → `npm install` → créer `backend/.env` (voir Configuration Backend) → `npx prisma migrate deploy` → `npx prisma generate` → (optionnel) `npm run seed`
+2. **Frontend** : `cd frontend` → `npm install` → (optionnel) créer `frontend/.env.local` avec `NEXT_PUBLIC_API_BASE_URL=http://localhost:4000`
+3. **Racine** : à la racine du projet, `npm install` (installe `concurrently` pour lancer les deux serveurs).
+4. **Lancer** : à la racine, `npm run dev` → ouvrir **http://localhost:3000**.
+
+Sans l’étape 3, vous pouvez lancer à la main : dans un terminal `cd backend` puis `npm run dev`, dans un autre `cd frontend` puis `npm run dev`.
+
+---
+
 ## 📂 Après avoir copié le projet sur un autre PC
 
 Si vous avez copié le dossier du projet depuis un autre ordinateur, faites les étapes suivantes sur le **nouveau PC** :
@@ -140,6 +146,18 @@ Si vous avez copié le dossier du projet depuis un autre ordinateur, faites les 
 
 ## 🚀 Démarrage
 
+### Option 1 : tout lancer en une commande (recommandé)
+
+À la **racine du projet** (après avoir fait une fois `npm install` à la racine pour installer `concurrently`) :
+
+```bash
+npm run dev
+```
+
+Cela démarre **le backend (port 4000) et le frontend (port 3000)** en même temps. Ouvrez ensuite **http://localhost:3000** dans le navigateur.
+
+### Option 2 : lancer backend et frontend séparément
+
 ### Backend
 ```bash
 cd backend
@@ -158,54 +176,20 @@ L'application démarre sur `http://localhost:3000`
 
 ## ☁️ Déploiement sur Render
 
-Le projet peut être déployé sur [Render](https://render.com) avec un **Blueprint** (backend + frontend + base PostgreSQL).
+Le projet se déploie sur [Render](https://render.com) avec un **Blueprint** (backend + frontend + base PostgreSQL).
 
-### Prérequis
+- **Fichier Blueprint** : `render.yaml` à la racine (base PostgreSQL, service API, service Web Next.js).
+- **Guide détaillé** : voir **[DEPLOIEMENT_RENDER.md](./DEPLOIEMENT_RENDER.md)** pour les étapes complètes (création du Blueprint, variables d’environnement, CORS, seed admin).
 
-- Un compte [Render](https://render.com)
-- Le code poussé sur un dépôt Git (GitHub, GitLab ou Bitbucket)
+### Résumé
 
-### Étapes
+1. **New → Blueprint** sur [dashboard.render.com](https://dashboard.render.com), connecter le dépôt, **Apply** (Render utilise `render.yaml`).
+2. Après le 1er déploiement, configurer :
+   - **Frontend** : `NEXT_PUBLIC_API_BASE_URL` = URL du backend (ex. `https://ocp-excursions-api.onrender.com`).
+   - **Backend** : `CORS_ORIGIN` = URL du frontend (ex. `https://ocp-excursions-web.onrender.com`).
+3. **Admin initial** : dans le Shell du service **ocp-excursions-api**, exécuter `npm run seed:prod`. En production, définir **SEED_ADMIN_EMAIL** et **SEED_ADMIN_PASSWORD** dans l’onglet Environment avant (pas de mot de passe par défaut en prod).
 
-1. **Connecter le dépôt**
-   - Sur [dashboard.render.com](https://dashboard.render.com), cliquez sur **New** → **Blueprint**.
-   - Connectez votre dépôt et sélectionnez le repo de la Plateforme Excursion.
-
-2. **Créer le Blueprint**
-   - Render détecte le fichier `render.yaml` à la racine du projet.
-   - Cliquez sur **Apply** pour créer les services et la base de données.
-
-3. **Variables d'environnement**
-   - Lors de la création, Render vous demandera la valeur de **NEXT_PUBLIC_API_BASE_URL** (frontend).
-   - Indiquez l’**URL publique du backend** : `https://ocp-excursions-api.onrender.com` (ou l’URL affichée pour le service API après le premier déploiement).
-   - **JWT_SECRET** est généré automatiquement par le Blueprint.
-   - **DATABASE_URL** est rempli automatiquement via la base PostgreSQL du Blueprint.
-
-4. **Premier déploiement**
-   - Le **backend** : install → `prisma generate` → `prisma migrate deploy` → build → start.
-   - Le **frontend** : install → build → start (avec `NEXT_PUBLIC_API_BASE_URL` défini).
-   - Une fois le backend déployé, notez son URL (ex. `https://ocp-excursions-api.onrender.com`) et, si ce n’est pas déjà fait, définissez **NEXT_PUBLIC_API_BASE_URL** du frontend avec cette URL, puis redéployez le frontend.
-
-5. **Utilisateur admin initial**
-   - Une fois le backend déployé, ouvrez le service **ocp-excursions-api** sur Render → onglet **Shell**.
-   - Exécutez : `npm run seed:prod` (crée l’admin et les données de test).
-   - Identifiants par défaut : `mohamed.msaadi@ocp.ma` / `popap.2004` (à modifier en production).
-
-### Fichier `render.yaml`
-
-À la racine du projet, `render.yaml` définit :
-
-- **Base PostgreSQL** : `ocp-excursions-db` (plan free par défaut).
-- **Service API** : `ocp-excursions-api` (dossier `backend`, migrations Prisma en `preDeployCommand`).
-- **Service Web** : `ocp-excursions-web` (dossier `frontend`, Next.js).
-
-Les URLs finales seront du type :
-- API : `https://ocp-excursions-api.onrender.com`
-- Site : `https://ocp-excursions-web.onrender.com`
-
-### Note
-
-Sur le plan **free**, les services s’endorment après inactivité ; le premier chargement peut prendre quelques dizaines de secondes.
+URLs typiques : API `https://ocp-excursions-api.onrender.com`, site `https://ocp-excursions-web.onrender.com`. Plan free : les services s’endorment après inactivité (premier chargement plus lent).
 
 ---
 
