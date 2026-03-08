@@ -17,8 +17,16 @@ const connectionString =
   process.env.DATABASE_URL?.trim() ||
   "postgresql://postgres:postgres@localhost:5432/ocp_excursions";
 
+// Render PostgreSQL (external) exige SSL ; on l'impose en prod si l'URL pointe vers render.com
+const isRenderExternal =
+  process.env.NODE_ENV === "production" &&
+  /\.(oregon|frankfurt|ohio)-postgres\.render\.com/i.test(connectionString);
+
 const pool = new Pool({
   connectionString,
+  ...(isRenderExternal && {
+    ssl: { rejectUnauthorized: true },
+  }),
 });
 
 const adapter = new PrismaPg(pool);
