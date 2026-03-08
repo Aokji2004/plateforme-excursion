@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🏖️ Plateforme Excursion OCP
 
 Plateforme de gestion des excursions pour les employés de l'Office Chérifien des Phosphates (OCP).
@@ -342,3 +343,6 @@ Propriétaire - OCP
 
 **Version**: 1.0.0  
 **Dernière mise à jour**: Janvier 2025
+=======
+# plateforme-excursion
+>>>>>>> 9166ad78ad073795dc10764ecbda39bb98bba0c6
