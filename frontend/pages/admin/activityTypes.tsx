@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { AdminLayout } from "../../components/AdminLayout";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000";
+import { API_BASE_URL } from "../../utils/config";
 
 interface ActivityType {
   id: number;

@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { getCityImageUrl } from "../../utils/cityImages";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000";
+import { API_BASE_URL } from "../../utils/config";
 
 interface Excursion {
   id: number;
@@ -323,8 +322,11 @@ export default function EmployeeDashboard() {
           {/* Vue Activités disponibles */}
           {activeView === "activities" && (
             <div>
+              <div className="mb-4 p-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-800">
+                Pour candidater à une activité, utilisez le <strong>lien d&apos;inscription</strong> (ou le code QR) partagé par votre direction. Vous n&apos;avez pas besoin de vous connecter : indiquez votre email ou matricule sur le formulaire.
+              </div>
               <h2 className="text-2xl font-bold text-slate-900 mb-6">
-                Activités disponibles
+                Activités disponibles (candidature via lien partagé)
               </h2>
               {excursions.length === 0 ? (
                 <p className="text-sm text-slate-600 text-center py-8">

@@ -12,6 +12,7 @@ import { adminSelectionRouter } from "./routes/adminSelection";
 import activityTypesRouter from "./routes/activityTypes";
 import childrenRouter from "./routes/children";
 import { adminHistoryRouter } from "./routes/adminHistory";
+import { publicInscriptionRouter } from "./routes/publicInscription";
 import { prisma } from "./db";
 
 dotenv.config();
@@ -30,17 +31,21 @@ app.use((_req, res, next) => {
   next();
 });
 
-// CORS : en dev autoriser explicitement le frontend local ; en prod utiliser CORS_ORIGIN si défini
+// CORS : en dev accepter tout localhost (3000, 3001, etc.) ; en prod utiliser CORS_ORIGIN si défini
 const corsOptions: cors.CorsOptions = {
   origin:
     env.CORS_ORIGIN !== undefined
       ? env.CORS_ORIGIN.split(",").map((o) => o.trim())
       : env.NODE_ENV === "production"
         ? true
-        : ["http://localhost:3000", "http://127.0.0.1:3000"],
+        : (origin, cb) => {
+            if (!origin) return cb(null, true);
+            if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return cb(null, true);
+            return cb(null, false);
+          },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: ["Content-Type", "Authorization", "Cache-Control"],
 };
 app.use(cors(corsOptions));
 app.use(express.json({ limit: "1mb" }));
@@ -112,6 +117,7 @@ app.use("/admin/selection", adminSelectionRouter);
 app.use("/admin/activity-types", activityTypesRouter);
 app.use("/admin/children", childrenRouter);
 app.use("/admin/history", adminHistoryRouter);
+app.use("/public/inscription", publicInscriptionRouter);
 app.use("/users", usersRouter);
 
 // 404

@@ -32,6 +32,7 @@ adminApplicationsRouter.get(
               lastName: true,
               email: true,
               matricule: true,
+              profileIncomplete: true,
             },
           },
           excursion: {

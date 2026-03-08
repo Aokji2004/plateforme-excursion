@@ -35,6 +35,9 @@ interface Excursion {
   imageUrl?: string | null;
   agentTypes?: string | null;
   createdAt: string;
+  externalFormUrl?: string | null;
+  inscriptionFormTitle?: string | null;
+  inscriptionFormDescription?: string | null;
 }
 
 export default function AdminActivitiesPage() {
@@ -77,6 +80,9 @@ export default function AdminActivitiesPage() {
   const [imageUrl, setImageUrl] = useState("");
   const [activityTypes, setActivityTypes] = useState<ActivityTypeOption[]>([]);
   const [activityTypeId, setActivityTypeId] = useState<number | "">("");
+  const [externalFormUrl, setExternalFormUrl] = useState("");
+  const [inscriptionFormTitle, setInscriptionFormTitle] = useState("");
+  const [inscriptionFormDescription, setInscriptionFormDescription] = useState("");
 
   useEffect(() => {
     const token =
@@ -202,6 +208,9 @@ export default function AdminActivitiesPage() {
     setAgentTypes("");
     setImageUrl("");
     setActivityTypeId("");
+    setExternalFormUrl("");
+    setInscriptionFormTitle("");
+    setInscriptionFormDescription("");
     setEditingExcursionId(null);
   }
 
@@ -267,6 +276,9 @@ export default function AdminActivitiesPage() {
       setChildPrice(excursion.childPrice || "");
       setAgentTypes(excursion.agentTypes || "");
       setImageUrl(excursion.imageUrl || "");
+      setExternalFormUrl(excursion.externalFormUrl || "");
+      setInscriptionFormTitle(excursion.inscriptionFormTitle || "");
+      setInscriptionFormDescription(excursion.inscriptionFormDescription || "");
       setIsModalOpen(true);
     } catch (e: any) {
       const msg = e?.message || "Erreur lors du chargement de l'activité";
@@ -370,6 +382,9 @@ export default function AdminActivitiesPage() {
           imageUrl: finalImageUrl || null,
           agentTypes: agentTypes || null,
           days: [],
+          externalFormUrl: externalFormUrl?.trim() || null,
+          inscriptionFormTitle: inscriptionFormTitle?.trim() || null,
+          inscriptionFormDescription: inscriptionFormDescription?.trim() || null,
         }),
       });
 
@@ -995,6 +1010,40 @@ export default function AdminActivitiesPage() {
                       />
                     </div>
                   )}
+                </div>
+                <div className="md:col-span-2 space-y-3 pt-2 border-t border-slate-200">
+                  <h4 className="text-sm font-semibold text-slate-800">Formulaire d&apos;inscription (optionnel)</h4>
+                  <div className="space-y-1">
+                    <label className="block text-slate-700 text-sm">URL formulaire externe (ex. Microsoft Forms, Google Forms)</label>
+                    <input
+                      type="url"
+                      placeholder="https://forms.office.com/..."
+                      value={externalFormUrl}
+                      onChange={(e) => setExternalFormUrl(e.target.value)}
+                      className="w-full rounded border border-slate-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                    <p className="text-xs text-slate-500">Si renseigné, le lien et le QR code partagés pointeront vers ce formulaire au lieu du formulaire intégré.</p>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-slate-700 text-sm">Titre du formulaire intégré</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Candidature à l'excursion Marrakech"
+                      value={inscriptionFormTitle}
+                      onChange={(e) => setInscriptionFormTitle(e.target.value)}
+                      className="w-full rounded border border-slate-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-slate-700 text-sm">Instructions / contenu du formulaire intégré</label>
+                    <textarea
+                      placeholder="Ex: Indiquez votre email professionnel ou matricule pour valider votre candidature. Vos informations (situation familiale, enfants) sont déjà enregistrées."
+                      value={inscriptionFormDescription}
+                      onChange={(e) => setInscriptionFormDescription(e.target.value)}
+                      rows={3}
+                      className="w-full rounded border border-slate-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-y"
+                    />
+                  </div>
                 </div>
               </div>
               <div className="flex justify-end gap-2 pt-4 mt-4 border-t border-slate-200">

@@ -1,6 +1,7 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider   = "prisma-client"
+  output     = "../generated/prisma"
+  engineType = "library"
 }
 
 datasource db {
@@ -21,6 +22,9 @@ model User {
   maritalStatus     MaritalStatus?
   spouse            String?
   spouseEmail       String?
+  
+  // Profil créé depuis formulaire public (candidature) sans être dans la liste initiale
+  profileIncomplete Boolean                @default(false)
   
   createdAt         DateTime               @default(now())
   updatedAt         DateTime               @updatedAt
@@ -87,7 +91,15 @@ model Excursion {
   selectionStatus           SelectionStatus          @default(NOT_STARTED)
   selectionMaxPlaces        Int?                     // Nombre max de places sélectionnées (défini lors du démarrage)
   paymentDeadline           DateTime?
-  pointsCreditedAt          DateTime?                // Date à laquelle les points ont été crédités (évite double crédit)
+  pointsCreditedAt          DateTime?               // Date à laquelle les points ont été crédités (évite double crédit)
+  
+  // Lien d'inscription public (partagé aux employés, sans login)
+  inscriptionToken          String?                  @unique  // token pour URL /candidater/[token]
+  inscriptionLinkValidFrom  DateTime?                // début de validité du lien
+  inscriptionLinkValidUntil DateTime?                // fin de validité du lien
+  externalFormUrl           String?                  @db.Text // si renseigné : lien/QR pointent vers ce formulaire (ex. Microsoft Forms)
+  inscriptionFormTitle      String?                  @db.Text // titre personnalisé du formulaire intégré
+  inscriptionFormDescription String?                 @db.Text // instructions / contenu personnalisé du formulaire intégré
   
   createdAt                 DateTime                 @default(now())
   updatedAt                 DateTime                 @updatedAt
@@ -124,6 +136,10 @@ model ExcursionApplication {
   paymentConfirmedDate        DateTime?
   createdAt                   DateTime                @default(now())
   updatedAt                   DateTime                @updatedAt
+  inscriptionFirstName        String?                 // prénom saisi lors de la candidature publique
+  inscriptionLastName         String?                 // nom saisi lors de la candidature publique
+  inscriptionAddress          String?                 @db.Text  // adresse saisie lors de la candidature publique
+  inscriptionPhone            String?                 // téléphone saisi lors de la candidature publique
 
   user                        User                    @relation(fields: [userId], references: [id])
   excursion                   Excursion               @relation(fields: [excursionId], references: [id])

@@ -396,10 +396,12 @@ export class SelectionService {
 
     let credited = 0;
     const activityType = excursion.activityType;
-    // Toujours privilégier le beneficiary du type d'activité (source des points) ; fallback sur l'excursion si invalide
+    // Priorité au type d'excursion (SINGLE/COUPLE/FAMILY) : c'est l'événement concret qui fixe la règle.
+    // Ex. excursion "Agadir Single" → uniquement pts agent (4), pas de conjoint/enfants.
+    // Fallback sur le beneficiary du type d'activité si le type d'excursion est invalide.
     const beneficiaryForFormula = resolveBeneficiaryForFormula(
-      activityType.beneficiary,
-      excursion.type
+      excursion.type,
+      activityType.beneficiary
     );
 
     for (const app of applications) {

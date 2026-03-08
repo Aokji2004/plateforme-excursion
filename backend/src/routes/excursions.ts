@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { Router } from "express";
 import { ExcursionStatus } from "../../generated/prisma/client";
 import {
@@ -6,6 +7,11 @@ import {
   requireAdmin,
 } from "../middleware/auth";
 import { prisma } from "../db";
+
+function generateInscriptionToken(): string {
+  return crypto.randomBytes(24).toString("base64url");
+}
+
 export const excursionsRouter = Router();
 
 // Liste des excursions (employé)
@@ -43,17 +49,25 @@ excursionsRouter.get(
   "/:id",
   authenticateToken,
   async (req: AuthenticatedRequest, res) => {
-    const id = Number(req.params.id);
-    const excursion = await prisma.excursion.findUnique({
-      where: { id },
-      include: { days: true, activityType: true },
-    });
+    try {
+      const id = Number(req.params.id);
+      if (Number.isNaN(id) || id < 1) {
+        return res.status(400).json({ message: "ID d'excursion invalide" });
+      }
+      const excursion = await prisma.excursion.findUnique({
+        where: { id },
+        include: { days: true, activityType: true },
+      });
 
-    if (!excursion) {
-      return res.status(404).json({ message: "Excursion non trouvée" });
+      if (!excursion) {
+        return res.status(404).json({ message: "Excursion non trouvée" });
+      }
+
+      return res.json(excursion);
+    } catch (e: any) {
+      console.error("Erreur GET /excursions/:id:", e);
+      return res.status(500).json({ message: e?.message || "Erreur lors du chargement de l'activité" });
     }
-
-    return res.json(excursion);
   }
 );
 
@@ -166,6 +180,9 @@ excursionsRouter.post(
       imageUrl,
       agentTypes,
       days,
+      externalFormUrl,
+      inscriptionFormTitle,
+      inscriptionFormDescription,
     } = req.body;
 
     // Validation des champs obligatoires
@@ -216,6 +233,10 @@ excursionsRouter.post(
         });
       }
 
+      const inscriptionToken = generateInscriptionToken();
+      const inscriptionLinkValidFrom = parseDate(registrationStartDate);
+      const inscriptionLinkValidUntil = parseDate(registrationEndDate);
+
       const excursion = await prisma.excursion.create({
         data: {
           title,
@@ -229,8 +250,8 @@ excursionsRouter.post(
           durationDays: calculatedDurationDays,
           totalSeats: Number(totalSeats),
           status: status || "OPEN",
-          registrationStartDate: parseDate(registrationStartDate),
-          registrationEndDate: parseDate(registrationEndDate),
+          registrationStartDate: inscriptionLinkValidFrom,
+          registrationEndDate: inscriptionLinkValidUntil,
           paymentStartDate: parseDate(paymentStartDate),
           paymentEndDate: parseDate(paymentEndDate),
           waitingListPaymentDate: parseDate(waitingListPaymentDate),
@@ -239,6 +260,12 @@ excursionsRouter.post(
           description: description || null,
           imageUrl: imageUrl || null,
           agentTypes: agentTypes || null,
+          inscriptionToken,
+          inscriptionLinkValidFrom,
+          inscriptionLinkValidUntil,
+          externalFormUrl: externalFormUrl && String(externalFormUrl).trim() ? String(externalFormUrl).trim() : null,
+          inscriptionFormTitle: inscriptionFormTitle && String(inscriptionFormTitle).trim() ? String(inscriptionFormTitle).trim() : null,
+          inscriptionFormDescription: inscriptionFormDescription && String(inscriptionFormDescription).trim() ? String(inscriptionFormDescription).trim() : null,
           createdById: req.user.id,
           days: {
             create: (days || []).map((d: any, index: number) => ({
@@ -324,6 +351,9 @@ excursionsRouter.put(
       imageUrl,
       agentTypes,
       days,
+      externalFormUrl,
+      inscriptionFormTitle,
+      inscriptionFormDescription,
     } = req.body;
 
     try {
@@ -360,6 +390,12 @@ excursionsRouter.put(
         where: { excursionId: id },
       });
 
+      const existing = await prisma.excursion.findUnique({
+        where: { id },
+        select: { inscriptionToken: true },
+      });
+      const registrationStart = parseDate(registrationStartDate);
+      const registrationEnd = parseDate(registrationEndDate);
       const excursion = await prisma.excursion.update({
         where: { id },
         data: {
@@ -374,8 +410,8 @@ excursionsRouter.put(
           durationDays,
           totalSeats: Number(totalSeats),
           status,
-          registrationStartDate: parseDate(registrationStartDate),
-          registrationEndDate: parseDate(registrationEndDate),
+          registrationStartDate: registrationStart,
+          registrationEndDate: registrationEnd,
           paymentStartDate: parseDate(paymentStartDate),
           paymentEndDate: parseDate(paymentEndDate),
           waitingListPaymentDate: parseDate(waitingListPaymentDate),
@@ -384,6 +420,12 @@ excursionsRouter.put(
           description: description || null,
           imageUrl: imageUrl || null,
           agentTypes: agentTypes || null,
+          inscriptionToken: existing?.inscriptionToken ?? generateInscriptionToken(),
+          inscriptionLinkValidFrom: registrationStart,
+          inscriptionLinkValidUntil: registrationEnd,
+          ...(externalFormUrl !== undefined && { externalFormUrl: externalFormUrl && String(externalFormUrl).trim() ? String(externalFormUrl).trim() : null }),
+          ...(inscriptionFormTitle !== undefined && { inscriptionFormTitle: inscriptionFormTitle && String(inscriptionFormTitle).trim() ? String(inscriptionFormTitle).trim() : null }),
+          ...(inscriptionFormDescription !== undefined && { inscriptionFormDescription: inscriptionFormDescription && String(inscriptionFormDescription).trim() ? String(inscriptionFormDescription).trim() : null }),
           days: {
             create: (days || []).map((d: any, index: number) => ({
               dayIndex: d.dayIndex ?? index + 1,
@@ -407,6 +449,52 @@ excursionsRouter.put(
       return res
         .status(400)
         .json({ message: "Erreur lors de la modification de l'excursion" });
+    }
+  }
+);
+
+// Générer ou régénérer le lien d'inscription public (admin)
+excursionsRouter.post(
+  "/:id/generate-inscription-link",
+  authenticateToken,
+  requireAdmin,
+  async (req: AuthenticatedRequest, res) => {
+    const id = Number(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ message: "ID invalide." });
+    }
+    try {
+      const existing = await prisma.excursion.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          inscriptionToken: true,
+          registrationStartDate: true,
+          registrationEndDate: true,
+        },
+      });
+      if (!existing) {
+        return res.status(404).json({ message: "Excursion non trouvée." });
+      }
+      const token = existing.inscriptionToken ?? generateInscriptionToken();
+      const validFrom = existing.registrationStartDate ?? new Date();
+      const validUntil = existing.registrationEndDate ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      const excursion = await prisma.excursion.update({
+        where: { id },
+        data: {
+          inscriptionToken: token,
+          inscriptionLinkValidFrom: validFrom,
+          inscriptionLinkValidUntil: validUntil,
+        },
+        include: { days: true, activityType: true },
+      });
+      return res.json(excursion);
+    } catch (e: any) {
+      console.error(e);
+      if (e.code === "P2025") {
+        return res.status(404).json({ message: "Excursion non trouvée." });
+      }
+      return res.status(400).json({ message: "Erreur lors de la génération du lien." });
     }
   }
 );
@@ -501,6 +589,7 @@ excursionsRouter.get(
               email: true,
               matricule: true,
               points: true,
+              profileIncomplete: true,
             },
           },
         },

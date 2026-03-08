@@ -1,6 +1,6 @@
 /**
  * Configuration centralisée (côté client).
- * En production, NEXT_PUBLIC_API_BASE_URL doit être défini (voir .env.example).
+ * En production : NEXT_PUBLIC_API_BASE_URL (obligatoire), NEXT_PUBLIC_APP_URL (recommandé pour les liens de candidature et QR).
  */
 
 const DEFAULT_API = "http://localhost:4000";
@@ -18,4 +18,13 @@ function getApiBaseUrl(): string {
   return "";
 }
 
+/** URL de base du frontend (pour liens de candidature et QR en prod). En déploiement, définir NEXT_PUBLIC_APP_URL (ex. https://votre-app.onrender.com). */
+function getSiteOrigin(): string {
+  const url = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (url) return url.replace(/\/$/, "");
+  if (typeof window !== "undefined") return window.location.origin;
+  return "";
+}
+
 export const API_BASE_URL = getApiBaseUrl();
+export const SITE_ORIGIN = getSiteOrigin();

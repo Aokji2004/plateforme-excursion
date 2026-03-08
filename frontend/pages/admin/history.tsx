@@ -10,8 +10,7 @@ import {
   type ExportColumn,
 } from "../../utils/exportTable";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000";
+import { API_BASE_URL } from "../../utils/config";
 
 export interface InscriptionRow {
   id: number;
@@ -120,6 +119,11 @@ export default function AdminHistoryPage() {
     const token =
       typeof window !== "undefined" ? localStorage.getItem("ocp_token") : null;
     if (!token) return;
+    if (!API_BASE_URL) {
+      setError("URL de l'API non configurée. Vérifiez NEXT_PUBLIC_API_BASE_URL.");
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -132,12 +136,21 @@ export default function AdminHistoryPage() {
         return res.json();
       })
       .then((data: InscriptionRow[]) => {
-        setRows(data);
+        setRows(Array.isArray(data) ? data : []);
         setCurrentPage(0);
         setError(null);
       })
       .catch((e) => {
-        setError(e.message || "Erreur lors du chargement");
+        const msg = e?.message || "";
+        const isNetworkError =
+          msg === "Failed to fetch" ||
+          msg.includes("NetworkError") ||
+          e?.name === "TypeError";
+        setError(
+          isNetworkError
+            ? "Impossible de joindre le serveur. Vérifiez que le backend est démarré (npm run dev dans le dossier backend)."
+            : msg || "Erreur lors du chargement"
+        );
         setRows([]);
       })
       .finally(() => setLoading(false));

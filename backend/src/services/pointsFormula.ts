@@ -11,20 +11,21 @@ const VALID_BENEFICIARIES: BeneficiaryType[] = ["FAMILY", "SINGLE", "COUPLE"];
 
 /**
  * Détermine le bénéficiaire à utiliser pour la formule des points.
- * Priorité au type d'activité (ActivityType.beneficiary), sinon à l'excursion (Excursion.type).
- * Garantit que les points du barème (activityType) sont toujours associés à la bonne formule.
+ * Priorité au type d'excursion (Excursion.type) : l'événement concret (SINGLE/COUPLE/FAMILY) fixe la règle.
+ * Ex. excursion Single → pts agent uniquement ; excursion Famille → agent + conjoint + enfants.
+ * Fallback sur le beneficiary du type d'activité si le type d'excursion est invalide.
  */
 export function resolveBeneficiaryForFormula(
-  activityTypeBeneficiary: string | null | undefined,
-  excursionType: string | null | undefined
+  excursionType: string | null | undefined,
+  activityTypeBeneficiary: string | null | undefined
 ): BeneficiaryType {
+  const fromExcursion = String(excursionType ?? "").trim().toUpperCase();
   const fromActivity = String(activityTypeBeneficiary ?? "").trim().toUpperCase();
-  const fromExcursion = String(excursionType ?? "").toUpperCase();
-  if (VALID_BENEFICIARIES.includes(fromActivity as BeneficiaryType)) {
-    return fromActivity as BeneficiaryType;
-  }
   if (VALID_BENEFICIARIES.includes(fromExcursion as BeneficiaryType)) {
     return fromExcursion as BeneficiaryType;
+  }
+  if (VALID_BENEFICIARIES.includes(fromActivity as BeneficiaryType)) {
+    return fromActivity as BeneficiaryType;
   }
   return "SINGLE";
 }

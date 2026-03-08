@@ -1,9 +1,7 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/router";
 import { AdminLayout } from "../../components/AdminLayout";
-
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000";
+import { API_BASE_URL } from "../../utils/config";
 
 interface UserOverview {
   id: number;
@@ -34,6 +32,7 @@ export default function AdminChildrenPage() {
   const [searchInput, setSearchInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [isManageModalOpen, setIsManageModalOpen] = useState(false);
   const hasHandledUserIdQuery = useRef(false);
 
   const [formData, setFormData] = useState({
@@ -96,8 +95,8 @@ export default function AdminChildrenPage() {
     const user = overview.users.find((u) => u.id === userIdFromQuery);
     if (user) {
       setSelectedUserId(user.id);
-      setSearchInput("");
       fetchChildrenForUser(user.id);
+      setIsManageModalOpen(true);
     }
     router.replace("/admin/children", undefined, { shallow: true });
   }, [router.isReady, router.query.userId, overview]);
@@ -119,11 +118,13 @@ export default function AdminChildrenPage() {
 
   const handleSelectUser = (userId: number) => {
     setSelectedUserId(userId);
-    setSearchInput("");
     fetchChildrenForUser(userId);
+    setIsManageModalOpen(true);
   };
 
-  const handleClearSelection = () => {
+  const handleCloseManageModal = () => {
+    setIsManageModalOpen(false);
+    setIsModalOpen(false);
     setSelectedUserId(null);
     setChildren([]);
     setSearchInput("");
@@ -303,35 +304,46 @@ export default function AdminChildrenPage() {
               )}
             </div>
 
-            {/* Bloc employé sélectionné + liste des enfants */}
-            {selectedUser && (
-              <div className="mt-6 rounded-lg border border-slate-200 bg-white shadow-sm">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
-                      <p className="text-xs text-emerald-700">Employé sélectionné</p>
-                      <p className="font-semibold text-emerald-900">
-                        {selectedUser.firstName} {selectedUser.lastName}
-                      </p>
-                      <p className="text-xs text-emerald-600">{selectedUser.email}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleClearSelection}
-                      className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
-                    >
-                      Changer
-                    </button>
-                  </div>
+          </>
+        )}
+
+        {/* Popup Gérer les enfants */}
+        {isManageModalOpen && selectedUser && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            onClick={(e) => e.target === e.currentTarget && handleCloseManageModal()}
+          >
+            <div className="w-full max-w-lg max-h-[90vh] overflow-hidden rounded-xl bg-white shadow-xl flex flex-col">
+              <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 flex-shrink-0">
+                <h2 className="text-base font-semibold text-slate-900">Gérer les enfants</h2>
+                <button
+                  type="button"
+                  onClick={handleCloseManageModal}
+                  className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                  aria-label="Fermer"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="px-4 py-3 border-b border-slate-100 bg-emerald-50/50">
+                <p className="text-xs text-emerald-700 font-medium">Employé</p>
+                <p className="font-semibold text-slate-900">
+                  {selectedUser.firstName} {selectedUser.lastName}
+                </p>
+                <p className="text-xs text-slate-600">{selectedUser.email}</p>
+              </div>
+              <div className="flex-1 overflow-y-auto min-h-0">
+                <div className="px-4 py-3 flex justify-end">
                   <button
                     type="button"
                     onClick={handleAddChild}
-                    className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                    className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
                   >
                     + Ajouter un enfant
                   </button>
                 </div>
-
                 <div className="divide-y divide-slate-100">
                   {children.length === 0 ? (
                     <div className="px-4 py-8 text-center text-slate-500 text-sm">Aucun enfant enregistré</div>
@@ -362,13 +374,13 @@ export default function AdminChildrenPage() {
                   )}
                 </div>
               </div>
-            )}
-          </>
+            </div>
+          </div>
         )}
 
         {/* Modal ajout enfant */}
         {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-[1px]">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 backdrop-blur-[1px]">
             <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
               <h2 className="text-lg font-semibold text-slate-900 mb-4">Ajouter un enfant</h2>
               <form onSubmit={handleSaveChild} className="space-y-4">

@@ -11,7 +11,7 @@ import {
   type ExportColumn,
 } from "../../../utils/exportTable";
 
-import { API_BASE_URL } from "../../../utils/config";
+import { API_BASE_URL, SITE_ORIGIN } from "../../../utils/config";
 
 interface Excursion {
   id: number;
@@ -38,6 +38,12 @@ interface Excursion {
   imageUrl?: string | null;
   agentTypes?: string | null;
   selectionStatus?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "CLOSED";
+  inscriptionToken?: string | null;
+  inscriptionLinkValidFrom?: string | null;
+  inscriptionLinkValidUntil?: string | null;
+  externalFormUrl?: string | null;
+  inscriptionFormTitle?: string | null;
+  inscriptionFormDescription?: string | null;
 }
 
 interface Application {
@@ -57,6 +63,7 @@ interface Application {
     email: string;
     matricule: string | null;
     points: number;
+    profileIncomplete?: boolean;
   };
 }
 
@@ -115,8 +122,10 @@ export default function ActivityDetailsPage() {
         refreshCount++;
         
         // Recharger les applications
+        const excId = Array.isArray(id) ? id[0] : id;
+        if (!excId || typeof excId !== "string") return;
         const resApplications = await fetch(
-          `${API_BASE_URL}/excursions/${id}/applications?t=${Date.now()}&r=${Math.random()}`,
+          `${API_BASE_URL}/excursions/${excId}/applications?t=${Date.now()}&r=${Math.random()}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -124,11 +133,10 @@ export default function ActivityDetailsPage() {
             },
           }
         );
-        
         if (resApplications.ok) {
           const applicationsData = await resApplications.json();
-          setApplications(JSON.parse(JSON.stringify(applicationsData)));
-          console.log(`🔄 Auto-refresh ${refreshCount}: ${applicationsData.length} applications`);
+          const list = Array.isArray(applicationsData) ? applicationsData : [];
+          setApplications(JSON.parse(JSON.stringify(list)));
         }
 
         // Arrêter après max refreshes
@@ -228,6 +236,16 @@ export default function ActivityDetailsPage() {
           throw new Error(msg || "Erreur lors du chargement de l'activité");
         }
         const excursionData = await resExcursion.json();
+        if (!excursionData || typeof excursionData !== "object" || Array.isArray(excursionData)) {
+          setError("Réponse serveur invalide pour cette activité.");
+          setLoading(false);
+          return;
+        }
+        if (excursionData.id == null || excursionData.title == null) {
+          setError("Données de l'activité incomplètes.");
+          setLoading(false);
+          return;
+        }
         // Si l'excursion n'a pas d'image, en générer une basée sur la ville
         if (!excursionData.imageUrl && excursionData.city) {
           excursionData.imageUrl = getCityImageUrl(excursionData.city);
@@ -250,8 +268,8 @@ export default function ActivityDetailsPage() {
         );
         if (resApplications.ok) {
           const applicationsData = await resApplications.json();
-          // Force React re-render
-          setApplications(JSON.parse(JSON.stringify(applicationsData)));
+          const list = Array.isArray(applicationsData) ? applicationsData : [];
+          setApplications(JSON.parse(JSON.stringify(list)));
         }
 
         // Charger les utilisateurs pour le modal
@@ -262,7 +280,7 @@ export default function ActivityDetailsPage() {
         });
         if (resUsers.ok) {
           const usersData = await resUsers.json();
-          setUsers(usersData);
+          setUsers(Array.isArray(usersData) ? usersData : []);
         }
       } catch (e: any) {
         const msg = e?.message || "";
@@ -282,11 +300,12 @@ export default function ActivityDetailsPage() {
 
   // Calculer les comptages
   useEffect(() => {
-    setInscritCount(applications.filter((app) => app.originalInscriptionStatus === "INSCRIT" || app.status === "PENDING").length);
-    setApprovedCount(applications.filter((app) => app.inscriptionStatus === "SELECTIONNE" || app.inscriptionStatus === "FINAL").length);
-    setWaitingListCount(applications.filter((app) => app.inscriptionStatus === "ATTENTE").length);
-    setFinalCount(applications.filter((app) => app.inscriptionStatus === "FINAL").length);
-    setRefusedCount(applications.filter((app) => app.inscriptionStatus === "REFUSE").length);
+    const list = Array.isArray(applications) ? applications : [];
+    setInscritCount(list.filter((app) => app.originalInscriptionStatus === "INSCRIT" || app.status === "PENDING").length);
+    setApprovedCount(list.filter((app) => app.inscriptionStatus === "SELECTIONNE" || app.inscriptionStatus === "FINAL").length);
+    setWaitingListCount(list.filter((app) => app.inscriptionStatus === "ATTENTE").length);
+    setFinalCount(list.filter((app) => app.inscriptionStatus === "FINAL").length);
+    setRefusedCount(list.filter((app) => app.inscriptionStatus === "REFUSE").length);
   }, [applications]);
 
   function getTypeLabel(type: string) {
@@ -324,11 +343,11 @@ export default function ActivityDetailsPage() {
 
     const rows: Record<string, string>[] = list.map((app) => ({
       ...(showRang ? { rang: String(app.selectionOrder ?? "-") } : {}),
-      matricule: app.user.matricule ?? "-",
-      nom: app.user.lastName,
-      prenom: app.user.firstName,
-      email: app.user.email ?? "-",
-      points: String(app.user.points ?? "-"),
+      matricule: app.user?.matricule ?? "-",
+      nom: app.user?.lastName ?? "-",
+      prenom: app.user?.firstName ?? "-",
+      email: app.user?.email ?? "-",
+      points: String(app.user?.points ?? "-"),
       score: app.computedScore != null ? app.computedScore.toFixed(2) : "-",
       date: formatDateForExport(app.createdAt),
     }));
@@ -372,64 +391,33 @@ export default function ActivityDetailsPage() {
   }
 
   function getFilteredApplications() {
+    const list = Array.isArray(applications) ? applications : [];
+    const search = searchApplicationInput.trim().toLowerCase();
+    const matchSearch = (app: Application) =>
+      search === "" ||
+      `${app.user?.firstName ?? ""} ${app.user?.lastName ?? ""}`.toLowerCase().includes(search) ||
+      (app.user?.email && app.user?.email.toLowerCase().includes(search)) ||
+      (app.user?.matricule && app.user?.matricule.toLowerCase().includes(search));
     switch (activeTab) {
       case "inscriptions":
-        // Afficher tous les participants qui ont été inscrits au départ
-        // en utilisant le champ originalInscriptionStatus qui ne change pas
-        return applications
-          .filter((app) => {
-            // Afficher si originalInscriptionStatus est "INSCRIT"
-            // ou si inscriptionStatus n'existe pas ou est "INSCRIT"
-            return (app.originalInscriptionStatus === "INSCRIT") || 
-                   (!app.inscriptionStatus || app.inscriptionStatus === "INSCRIT") || 
-                   (app.status === "PENDING" && !app.inscriptionStatus);
-          })
-          .filter((app) => 
-            searchApplicationInput.trim() === "" ||
-            `${app.user.firstName} ${app.user.lastName}`
-              .toLowerCase()
-              .includes(searchApplicationInput.toLowerCase()) ||
-            (app.user.email && app.user.email.toLowerCase().includes(searchApplicationInput.toLowerCase())) ||
-            (app.user.matricule && app.user.matricule.toLowerCase().includes(searchApplicationInput.toLowerCase()))
-          );
+        return list
+          .filter((app) =>
+            app.originalInscriptionStatus === "INSCRIT" ||
+            !app.inscriptionStatus || app.inscriptionStatus === "INSCRIT" ||
+            (app.status === "PENDING" && !app.inscriptionStatus)
+          )
+          .filter(matchSearch);
       case "selectionnes":
-        return applications
+        return list
           .filter((app) => app.inscriptionStatus === "SELECTIONNE" || app.inscriptionStatus === "FINAL")
           .sort((a, b) => (a.selectionOrder || 0) - (b.selectionOrder || 0))
-          .filter((app) =>
-            searchApplicationInput.trim() === "" ||
-            `${app.user.firstName} ${app.user.lastName}`
-              .toLowerCase()
-              .includes(searchApplicationInput.toLowerCase()) ||
-            (app.user.email && app.user.email.toLowerCase().includes(searchApplicationInput.toLowerCase())) ||
-            (app.user.matricule && app.user.matricule.toLowerCase().includes(searchApplicationInput.toLowerCase()))
-          );
+          .filter(matchSearch);
       case "attente":
-        return applications
-          .filter((app) => app.inscriptionStatus === "ATTENTE")
-          .filter((app) =>
-            searchApplicationInput.trim() === "" ||
-            `${app.user.firstName} ${app.user.lastName}`
-              .toLowerCase()
-              .includes(searchApplicationInput.toLowerCase()) ||
-            (app.user.email && app.user.email.toLowerCase().includes(searchApplicationInput.toLowerCase())) ||
-            (app.user.matricule && app.user.matricule.toLowerCase().includes(searchApplicationInput.toLowerCase()))
-          );
+        return list.filter((app) => app.inscriptionStatus === "ATTENTE").filter(matchSearch);
       case "finale":
-        return applications
-          .filter(
-            (app) => app.inscriptionStatus === "FINAL"
-          )
-          .filter((app) =>
-            searchApplicationInput.trim() === "" ||
-            `${app.user.firstName} ${app.user.lastName}`
-              .toLowerCase()
-              .includes(searchApplicationInput.toLowerCase()) ||
-            (app.user.email && app.user.email.toLowerCase().includes(searchApplicationInput.toLowerCase())) ||
-            (app.user.matricule && app.user.matricule.toLowerCase().includes(searchApplicationInput.toLowerCase()))
-          );
+        return list.filter((app) => app.inscriptionStatus === "FINAL").filter(matchSearch);
       default:
-        return applications;
+        return list;
     }
   }
 
@@ -958,27 +946,25 @@ export default function ActivityDetailsPage() {
     }
   }
 
+  const safeUsers = Array.isArray(users) ? users : [];
   const filteredUsers = searchUserInput.trim()
-    ? users.filter(
+    ? safeUsers.filter(
         (u) =>
-          `${u.firstName} ${u.lastName}`
-            .toLowerCase()
-            .includes(searchUserInput.toLowerCase()) ||
+          `${u.firstName} ${u.lastName}`.toLowerCase().includes(searchUserInput.toLowerCase()) ||
           (u.email && u.email.toLowerCase().includes(searchUserInput.toLowerCase())) ||
           (u.matricule && u.matricule.toLowerCase().includes(searchUserInput.toLowerCase()))
       )
-    : users;
+    : safeUsers;
 
+  const listForPayment = Array.isArray(applications) ? applications : [];
   const selectedParticipantsForPayment = paymentSearchInput.trim()
-    ? applications.filter(
+    ? listForPayment.filter(
         (app) =>
           app.inscriptionStatus === "SELECTIONNE" &&
-          (`${app.user.firstName} ${app.user.lastName}`
-            .toLowerCase()
-            .includes(paymentSearchInput.toLowerCase()) ||
-          (app.user.matricule && app.user.matricule.toLowerCase().includes(paymentSearchInput.toLowerCase())))
+          (`${app.user?.firstName ?? ""} ${app.user?.lastName ?? ""}`.toLowerCase().includes(paymentSearchInput.toLowerCase()) ||
+            (app.user?.matricule && app.user?.matricule.toLowerCase().includes(paymentSearchInput.toLowerCase())))
       )
-    : applications.filter((app) => app.inscriptionStatus === "SELECTIONNE");
+    : listForPayment.filter((app) => app.inscriptionStatus === "SELECTIONNE");
 
   if (loading) {
     return (
@@ -1010,7 +996,32 @@ export default function ActivityDetailsPage() {
     );
   }
 
-  const filteredApplications = getFilteredApplications();
+  let filteredApplications: Application[];
+  try {
+    filteredApplications = getFilteredApplications();
+  } catch (e) {
+    console.error("getFilteredApplications:", e);
+    filteredApplications = [];
+  }
+
+  const safeExcursion = excursion && typeof excursion === "object" && !Array.isArray(excursion) ? excursion : null;
+  if (!safeExcursion) {
+    return (
+      <AdminLayout>
+        <div className="flex-1 flex items-center justify-center bg-slate-100 text-slate-900">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">Activité non trouvée ou données invalides.</p>
+            <button
+              onClick={() => router.push("/admin/activities")}
+              className="px-4 py-2 rounded bg-emerald-600 text-white hover:bg-emerald-700"
+            >
+              Retour aux activités
+            </button>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
@@ -1028,34 +1039,32 @@ export default function ActivityDetailsPage() {
           </svg>
         </button>
         <img
-          src={excursion.imageUrl || getCityImageUrl(excursion.city)}
-          alt={excursion.title}
+          src={safeExcursion.imageUrl || getCityImageUrl(safeExcursion.city ?? "")}
+          alt={String(safeExcursion.title ?? "Activité")}
           className="w-full h-full object-cover"
           loading="lazy"
           onError={(e) => {
-            // Si l'image ne charge pas, essayer avec l'URL de la ville
-            const fallbackUrl = getCityImageUrl(excursion.city);
+            const fallbackUrl = getCityImageUrl(safeExcursion.city ?? "");
             const imgElement = e.target as HTMLImageElement;
             if (imgElement.src !== fallbackUrl) {
               imgElement.src = fallbackUrl;
             } else {
-              // Si même le fallback ne charge pas, masquer l'image
               imgElement.style.display = "none";
             }
           }}
         />
         <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
           <div className="text-center text-white">
-            <h1 className="text-3xl font-bold mb-2">{excursion.title}</h1>
-            <p className="text-lg mb-2">{excursion.city}</p>
+            <h1 className="text-3xl font-bold mb-2">{safeExcursion.title}</h1>
+            <p className="text-lg mb-2">{safeExcursion.city ?? ""}</p>
             <div className="flex flex-wrap justify-center gap-2">
-              {excursion.activityType?.title && (
+              {safeExcursion.activityType?.title && (
                 <span className="inline-block px-3 py-1 rounded bg-emerald-600 text-white text-sm font-medium">
-                  {excursion.activityType.title}
+                  {safeExcursion.activityType.title}
                 </span>
               )}
               <span className="inline-block px-3 py-1 rounded bg-emerald-600 text-white text-sm font-medium">
-                {getTypeLabel(excursion.type)}
+                {getTypeLabel(safeExcursion.type ?? "FAMILY")}
               </span>
             </div>
           </div>
@@ -1222,6 +1231,107 @@ export default function ActivityDetailsPage() {
                 </p>
               </div>
             </div>
+
+            {/* Lien d'inscription public (partagé aux employés, sans login) */}
+            <div className="mt-8 pt-6 border-t border-slate-200">
+              <h3 className="text-sm font-semibold text-slate-900 mb-3">Lien d&apos;inscription public</h3>
+              {excursion.inscriptionToken || excursion.externalFormUrl ? (
+                <>
+                  <p className="text-xs text-slate-500 mb-3">
+                    Partager ce lien et le code QR aux employés. Validité : du{" "}
+                    {excursion.inscriptionLinkValidFrom
+                      ? new Date(excursion.inscriptionLinkValidFrom).toLocaleDateString("fr-FR")
+                      : "—"}{" "}
+                    au{" "}
+                    {excursion.inscriptionLinkValidUntil
+                      ? new Date(excursion.inscriptionLinkValidUntil).toLocaleDateString("fr-FR")
+                      : "—"}.
+                    {excursion.externalFormUrl && (
+                      <span className="block mt-1 text-amber-700">Formulaire externe (ex. Microsoft Forms) utilisé.</span>
+                    )}
+                  </p>
+                  <div className="flex flex-wrap items-start gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          readOnly
+                          value={
+                            excursion.externalFormUrl
+                              ? excursion.externalFormUrl
+                              : SITE_ORIGIN
+                                ? `${SITE_ORIGIN}/candidater/${excursion.inscriptionToken}`
+                                : typeof window !== "undefined"
+                                  ? `${window.location.origin}/candidater/${excursion.inscriptionToken}`
+                                  : `/candidater/${excursion.inscriptionToken}`
+                          }
+                          className="flex-1 rounded border border-slate-300 px-3 py-2 text-sm bg-slate-50"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const url = excursion.externalFormUrl
+                              ? excursion.externalFormUrl
+                              : (SITE_ORIGIN || (typeof window !== "undefined" ? window.location.origin : ""))
+                                ? `${SITE_ORIGIN || window.location.origin}/candidater/${excursion.inscriptionToken}`
+                                : "";
+                            if (url && navigator.clipboard) {
+                              navigator.clipboard.writeText(url);
+                              alert("Lien copié dans le presse-papiers.");
+                            }
+                          }}
+                          className="px-3 py-2 rounded bg-slate-200 text-slate-800 text-sm font-medium hover:bg-slate-300"
+                        >
+                          Copier
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex-shrink-0">
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(
+                          excursion.externalFormUrl
+                            ? excursion.externalFormUrl
+                            : (SITE_ORIGIN || (typeof window !== "undefined" ? window.location.origin : ""))
+                              ? `${SITE_ORIGIN || window.location.origin}/candidater/${excursion.inscriptionToken}`
+                              : `/candidater/${excursion.inscriptionToken}`
+                        )}`}
+                        alt="QR Code lien inscription"
+                        className="w-[120px] h-[120px] border border-slate-200 rounded"
+                      />
+                      <p className="text-xs text-slate-500 mt-1 text-center">Code QR</p>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-slate-600 mb-2">
+                    Aucun lien généré pour cette activité. Cliquez pour en créer un (les dates d&apos;ouverture/fermeture des inscriptions seront utilisées comme validité).
+                  </p>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const t = typeof window !== "undefined" ? localStorage.getItem("ocp_token") : null;
+                      if (!t) return;
+                      try {
+                        const res = await fetch(`${API_BASE_URL}/excursions/${excursion.id}/generate-inscription-link`, {
+                          method: "POST",
+                          headers: { Authorization: `Bearer ${t}` },
+                        });
+                        if (!res.ok) throw new Error("Erreur");
+                        const updated = await res.json();
+                        setExcursion((prev) => (prev ? { ...prev, ...updated } : prev));
+                      } catch {
+                        alert("Impossible de générer le lien.");
+                      }
+                    }}
+                    className="px-3 py-2 rounded bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700"
+                  >
+                    Générer le lien d&apos;inscription
+                  </button>
+                </>
+              )}
+            </div>
+
             <div className="mt-6 flex justify-end">
               <button
                 onClick={() =>
@@ -1543,27 +1653,32 @@ export default function ActivityDetailsPage() {
                         )}
                         {columnVisibility.matricule && (
                           <td className="px-4 py-3 text-slate-900">
-                            {app.user.matricule || "-"}
+                            {app.user?.matricule || "-"}
                           </td>
                         )}
                         {columnVisibility.nom && (
                           <td className="px-4 py-3 text-slate-900">
-                            {app.user.lastName}
+                            {app.user?.lastName}
                           </td>
                         )}
                         {columnVisibility.prenom && (
                           <td className="px-4 py-3 text-slate-900">
-                            {app.user.firstName}
+                            {app.user?.firstName}
                           </td>
                         )}
                         {columnVisibility.email && (
                           <td className="px-4 py-3 text-slate-900">
-                            {app.user.email}
+                            {app.user?.email}
+                            {app.user?.profileIncomplete && (
+                              <span className="ml-2 inline-block px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800" title="Employé non présent dans la liste initiale ; compléter le profil dans Utilisateurs">
+                                Profil à compléter
+                              </span>
+                            )}
                           </td>
                         )}
                         {columnVisibility.points && (
                           <td className="px-4 py-3 text-slate-900">
-                            {app.user.points}
+                            {app.user?.points}
                           </td>
                         )}
                         {columnVisibility.score && (
@@ -1931,10 +2046,10 @@ export default function ActivityDetailsPage() {
                         />
                         <div className="flex-1">
                           <div className="font-medium text-slate-900">
-                            {app.user.firstName} {app.user.lastName}
+                            {app.user?.firstName} {app.user?.lastName}
                           </div>
                           <div className="text-xs text-slate-600">
-                            Matricule: {app.user.matricule || "-"} | Email: {app.user.email}
+                            Matricule: {app.user?.matricule || "-"} | Email: {app.user?.email}
                           </div>
                         </div>
                       </div>
@@ -1959,7 +2074,7 @@ export default function ActivityDetailsPage() {
                       .filter((a) => selectedApplicationsForPayment.includes(a.id))
                       .map((app) => (
                         <div key={app.id}>
-                          • {app.user.firstName} {app.user.lastName}
+                          • {app.user?.firstName} {app.user?.lastName}
                         </div>
                       ))}
                   </div>
@@ -2042,7 +2157,7 @@ export default function ActivityDetailsPage() {
                           </span>
                           {(app.user?.matricule || app.user?.email) && (
                             <div className="text-xs text-slate-500 mt-0.5">
-                              {app.user?.matricule && `Matr. ${app.user.matricule}`}
+                              {app.user?.matricule && `Matr. ${app.user?.matricule}`}
                               {app.user?.matricule && app.user?.email && " · "}
                               {app.user?.email}
                             </div>

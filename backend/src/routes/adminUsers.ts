@@ -197,6 +197,107 @@ adminUsersRouter.post(
   }
 );
 
+// Import en masse (CSV/Excel) — body: { users: [{ email, firstName, lastName, matricule?, role?, password?, points? }], defaultPassword?: string }
+adminUsersRouter.post(
+  "/import",
+  authenticateToken,
+  requireAdmin,
+  async (req: AuthenticatedRequest, res) => {
+    const { users: rawUsers, defaultPassword } = req.body as {
+      users?: Array<{
+        email?: string;
+        firstName?: string;
+        lastName?: string;
+        matricule?: string;
+        role?: string;
+        password?: string;
+        points?: number;
+      }>;
+      defaultPassword?: string;
+    };
+
+    if (!Array.isArray(rawUsers) || rawUsers.length === 0) {
+      return res.status(400).json({
+        message: "Le corps de la requête doit contenir un tableau 'users' non vide.",
+      });
+    }
+
+    const fallbackPassword = (defaultPassword && defaultPassword.trim()) || "MotDePasse1!";
+    const created: number[] = [];
+    const skipped: { row: number; email: string; reason: string }[] = [];
+    const errors: { row: number; email?: string; message: string }[] = [];
+
+    for (let i = 0; i < rawUsers.length; i++) {
+      const row = rawUsers[i];
+      const rowNum = i + 1;
+      const email = typeof row?.email === "string" ? row.email.trim() : "";
+      const firstName = typeof row?.firstName === "string" ? row.firstName.trim() : "";
+      const lastName = typeof row?.lastName === "string" ? row.lastName.trim() : "";
+
+      if (!email || !firstName || !lastName) {
+        errors.push({
+          row: rowNum,
+          email: email || undefined,
+          message: "Email, prénom et nom sont obligatoires.",
+        });
+        continue;
+      }
+
+      const role = (row?.role === "ADMIN" ? "ADMIN" : "EMPLOYEE") as "ADMIN" | "EMPLOYEE";
+      const matricule = typeof row?.matricule === "string" ? row.matricule.trim() || null : null;
+      const points = typeof row?.points === "number" && row.points >= 0 ? row.points : 0;
+      const password = typeof row?.password === "string" && row.password.trim() ? row.password.trim() : fallbackPassword;
+
+      try {
+        const existing = await prisma.user.findUnique({
+          where: { email: email.toLowerCase() },
+        });
+        if (existing) {
+          skipped.push({ row: rowNum, email, reason: "Email déjà existant" });
+          continue;
+        }
+        if (matricule) {
+          const existingMat = await prisma.user.findFirst({
+            where: { matricule },
+          });
+          if (existingMat) {
+            skipped.push({ row: rowNum, email, reason: "Matricule déjà existant" });
+            continue;
+          }
+        }
+
+        const passwordHash = await bcrypt.hash(password, 10);
+        const user = await prisma.user.create({
+          data: {
+            email: email.toLowerCase(),
+            passwordHash,
+            firstName,
+            lastName,
+            matricule,
+            role,
+            points,
+          },
+          select: { id: true },
+        });
+        created.push(user.id);
+      } catch (e: any) {
+        errors.push({
+          row: rowNum,
+          email,
+          message: e?.message || "Erreur lors de la création",
+        });
+      }
+    }
+
+    return res.json({
+      created: created.length,
+      skipped: skipped.length,
+      errors: errors.length,
+      details: { createdIds: created, skipped, errors },
+    });
+  }
+);
+
 // Récupération d'un utilisateur par ID (admin)
 adminUsersRouter.get(
   "/:id",
@@ -237,7 +338,72 @@ adminUsersRouter.get(
   }
 );
 
-// Modification d'un utilisateur (admin)
+// Mise à jour de la situation familiale uniquement (doit être avant PUT /:id)
+adminUsersRouter.put(
+  "/:id/family-status",
+  authenticateToken,
+  requireAdmin,
+  async (req: AuthenticatedRequest, res) => {
+    const id = parseInt(String(req.params.id));
+    if (isNaN(id)) {
+      return res.status(400).json({ message: "ID invalide." });
+    }
+
+    const { maritalStatus, spouse, spouseEmail } = req.body;
+
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id },
+        select: { id: true },
+      });
+
+      if (!user) {
+        return res.status(404).json({ message: "Utilisateur non trouvé." });
+      }
+
+      const updateData: Record<string, unknown> = {};
+      if (maritalStatus !== undefined) {
+        updateData.maritalStatus = maritalStatus || null;
+      }
+      if (spouse !== undefined) {
+        updateData.spouse = spouse || null;
+      }
+      if (spouseEmail !== undefined) {
+        updateData.spouseEmail = spouseEmail || null;
+      }
+
+      const updatedUser = await prisma.user.update({
+        where: { id },
+        data: updateData,
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          matricule: true,
+          role: true,
+          points: true,
+          maritalStatus: true,
+          spouse: true,
+          spouseEmail: true,
+          createdAt: true,
+        },
+      });
+
+      return res.json(updatedUser);
+    } catch (e: any) {
+      console.error(e);
+      if (e.code === "P2025") {
+        return res.status(404).json({ message: "Utilisateur non trouvé." });
+      }
+      return res
+        .status(400)
+        .json({ message: "Erreur lors de la mise à jour de l'utilisateur." });
+    }
+  }
+);
+
+// Modification d'un utilisateur (admin) — email, prénom, nom obligatoires
 adminUsersRouter.put(
   "/:id",
   authenticateToken,
@@ -315,73 +481,6 @@ adminUsersRouter.put(
   }
 );
 
-// Mise à jour des informations familiales d'un utilisateur (admin)
-adminUsersRouter.put(
-  "/:id",
-  authenticateToken,
-  requireAdmin,
-  async (req: AuthenticatedRequest, res) => {
-    const id = parseInt(String(req.params.id));
-    if (isNaN(id)) {
-      return res.status(400).json({ message: "ID invalide." });
-    }
-
-    const { maritalStatus, spouse, spouseEmail } = req.body;
-
-    try {
-      // Vérifier que l'utilisateur existe
-      const user = await prisma.user.findUnique({
-        where: { id },
-        select: { id: true },
-      });
-
-      if (!user) {
-        return res.status(404).json({ message: "Utilisateur non trouvé." });
-      }
-
-      const updateData: any = {};
-      
-      if (maritalStatus !== undefined) {
-        updateData.maritalStatus = maritalStatus || null;
-      }
-      if (spouse !== undefined) {
-        updateData.spouse = spouse || null;
-      }
-      if (spouseEmail !== undefined) {
-        updateData.spouseEmail = spouseEmail || null;
-      }
-
-      const updatedUser = await prisma.user.update({
-        where: { id },
-        data: updateData,
-        select: {
-          id: true,
-          email: true,
-          firstName: true,
-          lastName: true,
-          matricule: true,
-          role: true,
-          points: true,
-          maritalStatus: true,
-          spouse: true,
-          spouseEmail: true,
-          createdAt: true,
-        },
-      });
-
-      return res.json(updatedUser);
-    } catch (e: any) {
-      console.error(e);
-      if (e.code === "P2025") {
-        return res.status(404).json({ message: "Utilisateur non trouvé." });
-      }
-      return res
-        .status(400)
-        .json({ message: "Erreur lors de la mise à jour de l'utilisateur." });
-    }
-  }
-);
-
 // Suppression d'un utilisateur (admin)
 adminUsersRouter.delete(
   "/:id",
@@ -394,29 +493,43 @@ adminUsersRouter.delete(
     }
 
     try {
-      // Vérifier que l'utilisateur existe
       const user = await prisma.user.findUnique({
         where: { id },
-        select: { id: true },
+        select: {
+          id: true,
+          createdExcursions: { select: { id: true } },
+        },
       });
 
       if (!user) {
         return res.status(404).json({ message: "Utilisateur non trouvé." });
       }
 
-      // Supprimer l'utilisateur (les relations seront gérées par Prisma selon le schema)
+      // Impossible de supprimer si l'utilisateur a créé des activités
+      if (user.createdExcursions?.length) {
+        return res.status(400).json({
+          message: "Impossible de supprimer : cet utilisateur a créé des activités. Réattribuez-les ou supprimez-les d'abord.",
+        });
+      }
+
+      // Supprimer les dépendances avant l'utilisateur (pas de cascade sur ces relations)
+      await prisma.excursionApplication.deleteMany({ where: { userId: id } });
+      await prisma.userPointHistory.deleteMany({
+        where: { OR: [{ userId: id }, { createdById: id }] },
+      });
+
       await prisma.user.delete({
         where: { id },
       });
 
       return res.status(204).send();
     } catch (e: any) {
-      console.error(e);
+      console.error("DELETE /admin/users/:id", e);
       if (e.code === "P2025") {
         return res.status(404).json({ message: "Utilisateur non trouvé." });
       }
       return res
-        .status(400)
+        .status(500)
         .json({ message: "Erreur lors de la suppression de l'utilisateur." });
     }
   }

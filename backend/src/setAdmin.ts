@@ -1,11 +1,18 @@
+import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import { prisma } from "./db";
 
-const NEW_EMAIL = "mohamed.msaadi@ocp.ma";
-const NEW_PASSWORD = "popap.2004";
+dotenv.config();
 
 async function main() {
-  // Trouver l'admin existant (admin@ocp.ma ou premier ADMIN)
+  const NEW_EMAIL = process.env.SEED_ADMIN_EMAIL || "mohamed.msaadi@ocp.ma";
+  const NEW_PASSWORD = process.env.SEED_ADMIN_PASSWORD || "popap.2004";
+
+  if (process.env.NODE_ENV === "production" && NEW_PASSWORD === "popap.2004") {
+    console.error("En production, définissez SEED_ADMIN_PASSWORD (et éventuellement SEED_ADMIN_EMAIL) dans .env.");
+    process.exit(1);
+  }
+
   let admin = await prisma.user.findUnique({
     where: { email: "admin@ocp.ma" },
   });
@@ -44,8 +51,10 @@ async function main() {
   });
 
   console.log("✅ Admin mis à jour.");
-  console.log("   Email    :", NEW_EMAIL);
-  console.log("   Mot de passe :", NEW_PASSWORD);
+  console.log("   Email :", NEW_EMAIL);
+  if (process.env.NODE_ENV !== "production") {
+    console.log("   Mot de passe :", NEW_PASSWORD);
+  }
 }
 
 main()

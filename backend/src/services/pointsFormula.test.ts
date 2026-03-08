@@ -96,19 +96,19 @@ describe("Plan d'accréditation des points - Formules", () => {
   });
 });
 
-describe("Dépendance type d'activité – Résolution du beneficiary", () => {
-  it("privilégie toujours le beneficiary du type d'activité (FAMILY)", () => {
+describe("Résolution du beneficiary (priorité type d'excursion)", () => {
+  it("privilégie le type d'excursion (FAMILY)", () => {
     expect(resolveBeneficiaryForFormula("FAMILY", "SINGLE")).toBe("FAMILY");
     expect(resolveBeneficiaryForFormula("family", "COUPLE")).toBe("FAMILY");
   });
-  it("privilégie toujours le beneficiary du type d'activité (SINGLE)", () => {
+  it("privilégie le type d'excursion (SINGLE) – ex. Agadir Single → pts agent uniquement", () => {
     expect(resolveBeneficiaryForFormula("SINGLE", "FAMILY")).toBe("SINGLE");
     expect(resolveBeneficiaryForFormula("Single", null)).toBe("SINGLE");
   });
-  it("privilégie toujours le beneficiary du type d'activité (COUPLE)", () => {
+  it("privilégie le type d'excursion (COUPLE)", () => {
     expect(resolveBeneficiaryForFormula("COUPLE", "FAMILY")).toBe("COUPLE");
   });
-  it("fallback sur le type d'excursion si type d'activité invalide ou vide", () => {
+  it("fallback sur le type d'activité si type d'excursion invalide ou vide", () => {
     expect(resolveBeneficiaryForFormula("", "FAMILY")).toBe("FAMILY");
     expect(resolveBeneficiaryForFormula(null, "COUPLE")).toBe("COUPLE");
     expect(resolveBeneficiaryForFormula("EXCURSION", "FAMILY")).toBe("FAMILY");
@@ -144,5 +144,42 @@ describe("Conformité : points du type d'activité + formule selon beneficiary",
     expect(beneficiary).toBe("COUPLE");
     const pts = computePointsToCredit(beneficiary, activityType, user);
     expect(pts).toBe(6);
+  });
+});
+
+/**
+ * Table de vérification pour audit / déploiement : chaque scénario attendu vs résultat réel.
+ * Barème utilisé : 4 pts agent, 2 pts conjoint, 1 pt/enfant (comme exemples CDC).
+ */
+describe("Table de vérification (audit pré-déploiement)", () => {
+  const barème = { points: 4, pointsConjoint: 2, pointsPerChild: 1 };
+
+  const scenarios: Array<{
+    label: string;
+    type: "SINGLE" | "COUPLE" | "FAMILY";
+    maritalStatus: string | null;
+    childrenCount: number;
+    expectedPoints: number;
+  }> = [
+    { label: "SINGLE – Célibataire", type: "SINGLE", maritalStatus: "SINGLE", childrenCount: 0, expectedPoints: 4 },
+    { label: "SINGLE – Marié (ignoré)", type: "SINGLE", maritalStatus: "MARRIED", childrenCount: 2, expectedPoints: 4 },
+    { label: "COUPLE – Célibataire", type: "COUPLE", maritalStatus: "SINGLE", childrenCount: 0, expectedPoints: 4 },
+    { label: "COUPLE – Marié", type: "COUPLE", maritalStatus: "MARRIED", childrenCount: 0, expectedPoints: 6 },
+    { label: "COUPLE – Divorcé", type: "COUPLE", maritalStatus: "DIVORCED", childrenCount: 0, expectedPoints: 4 },
+    { label: "COUPLE – Veuf", type: "COUPLE", maritalStatus: "WIDOWED", childrenCount: 0, expectedPoints: 4 },
+    { label: "FAMILY – Marié 0 enfant", type: "FAMILY", maritalStatus: "MARRIED", childrenCount: 0, expectedPoints: 6 },
+    { label: "FAMILY – Marié 1 enfant", type: "FAMILY", maritalStatus: "MARRIED", childrenCount: 1, expectedPoints: 7 },
+    { label: "FAMILY – Marié 3 enfants", type: "FAMILY", maritalStatus: "MARRIED", childrenCount: 3, expectedPoints: 9 },
+    { label: "FAMILY – Marié 5 enfants", type: "FAMILY", maritalStatus: "MARRIED", childrenCount: 5, expectedPoints: 11 },
+    { label: "FAMILY – Célibataire 2 enfants", type: "FAMILY", maritalStatus: "SINGLE", childrenCount: 2, expectedPoints: 6 },
+    { label: "FAMILY – Divorcé 1 enfant", type: "FAMILY", maritalStatus: "DIVORCED", childrenCount: 1, expectedPoints: 5 },
+  ];
+
+  scenarios.forEach(({ label, type, maritalStatus, childrenCount, expectedPoints }) => {
+    it(`${label} → ${expectedPoints} pts`, () => {
+      const user = { maritalStatus, _count: { children: childrenCount } };
+      const pts = computePointsToCredit(type, barème, user);
+      expect(pts).toBe(expectedPoints);
+    });
   });
 });

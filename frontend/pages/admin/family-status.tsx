@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { AdminLayout } from "../../components/AdminLayout";
-
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000";
+import { API_BASE_URL } from "../../utils/config";
 
 interface User {
   id: number;
@@ -114,19 +112,22 @@ export default function FamilyStatusPage() {
     });
   };
 
-  const handleSaveEdit = async () => {
-    if (!editingUserId) return;
+  const handleSaveEdit = async (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    if (!editingUserId) {
+      alert("Aucun utilisateur en cours de modification. Cliquez sur « Modifier » pour éditer.");
+      return;
+    }
+
+    const token = typeof window !== "undefined" ? localStorage.getItem("ocp_token") : null;
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
 
     try {
       setSaving(true);
-      const token = typeof window !== "undefined" ? localStorage.getItem("ocp_token") : null;
-
-      if (!token) {
-        router.replace("/login");
-        return;
-      }
-
-      const response = await fetch(`${API_BASE_URL}/admin/users/${editingUserId}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/users/${editingUserId}/family-status`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -134,18 +135,29 @@ export default function FamilyStatusPage() {
         },
         body: JSON.stringify({
           maritalStatus: editForm.maritalStatus || null,
-          spouse: editForm.spouse || null,
-          spouseEmail: editForm.spouseEmail || null,
+          spouse: (editForm.maritalStatus === "MARRIED" || editForm.maritalStatus === "WIDOWED")
+            ? ((editForm.spouse || "").trim() || null)
+            : null,
+          spouseEmail: (editForm.maritalStatus === "MARRIED" || editForm.maritalStatus === "WIDOWED")
+            ? ((editForm.spouseEmail || "").trim() || null)
+            : null,
         }),
       });
 
+      let errorMessage = "Erreur lors de la sauvegarde";
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `HTTP ${response.status}`);
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || `Erreur ${response.status}`;
+        } catch {
+          errorMessage = `Erreur serveur (${response.status}). Vérifiez que le backend est démarré.`;
+        }
+        throw new Error(errorMessage);
       }
 
       setEditingUserId(null);
       await fetchUsers();
+      alert("Situation familiale enregistrée.");
     } catch (err) {
       console.error("Error saving:", err);
       alert(err instanceof Error ? err.message : "Erreur lors de la sauvegarde");
@@ -247,12 +259,16 @@ export default function FamilyStatusPage() {
                           </label>
                           <select
                             value={editForm.maritalStatus}
-                            onChange={(e) =>
+                            onChange={(e) => {
+                              const newStatus = e.target.value as "SINGLE" | "MARRIED" | "DIVORCED" | "WIDOWED" | "";
+                              const canHaveSpouse = newStatus === "MARRIED" || newStatus === "WIDOWED";
                               setEditForm({
                                 ...editForm,
-                                maritalStatus: e.target.value as any,
-                              })
-                            }
+                                maritalStatus: newStatus,
+                                spouse: canHaveSpouse ? editForm.spouse : "",
+                                spouseEmail: canHaveSpouse ? editForm.spouseEmail : "",
+                              });
+                            }}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                           >
                             <option value="">Non spécifié</option>
@@ -262,49 +278,55 @@ export default function FamilyStatusPage() {
                             <option value="WIDOWED">Veuf(ve)</option>
                           </select>
                         </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Nom du conjoint
-                          </label>
-                          <input
-                            type="text"
-                            value={editForm.spouse}
-                            onChange={(e) =>
-                              setEditForm({
-                                ...editForm,
-                                spouse: e.target.value,
-                              })
-                            }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                            placeholder="Nom du conjoint"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Email du conjoint
-                          </label>
-                          <input
-                            type="email"
-                            value={editForm.spouseEmail}
-                            onChange={(e) =>
-                              setEditForm({
-                                ...editForm,
-                                spouseEmail: e.target.value,
-                              })
-                            }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                            placeholder="Email du conjoint"
-                          />
-                        </div>
+                        {(editForm.maritalStatus === "MARRIED" || editForm.maritalStatus === "WIDOWED") && (
+                          <>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Nom du conjoint
+                              </label>
+                              <input
+                                type="text"
+                                value={editForm.spouse}
+                                onChange={(e) =>
+                                  setEditForm({
+                                    ...editForm,
+                                    spouse: e.target.value,
+                                  })
+                                }
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                placeholder="Nom du conjoint"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Email du conjoint
+                              </label>
+                              <input
+                                type="email"
+                                value={editForm.spouseEmail}
+                                onChange={(e) =>
+                                  setEditForm({
+                                    ...editForm,
+                                    spouseEmail: e.target.value,
+                                  })
+                                }
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                placeholder="Email du conjoint"
+                              />
+                            </div>
+                          </>
+                        )}
                         <div className="flex gap-2 pt-2">
                           <button
+                            type="button"
                             onClick={() => setEditingUserId(null)}
                             className="flex-1 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm font-medium"
                           >
                             Annuler
                           </button>
                           <button
-                            onClick={handleSaveEdit}
+                            type="button"
+                            onClick={(e) => handleSaveEdit(e)}
                             disabled={saving}
                             className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium disabled:opacity-50"
                           >
@@ -321,17 +343,19 @@ export default function FamilyStatusPage() {
                                 <span className="font-medium">Statut:</span>{" "}
                                 {maritalStatusLabels[user.maritalStatus]}
                               </p>
-                              {user.spouse && (
-                                <p className="text-sm text-gray-700">
-                                  <span className="font-medium">Conjoint:</span>{" "}
-                                  {user.spouse}
-                                </p>
-                              )}
-                              {user.spouseEmail && (
-                                <p className="text-sm text-gray-700">
-                                  <span className="font-medium">Email:</span>{" "}
-                                  {user.spouseEmail}
-                                </p>
+                              {(user.maritalStatus === "MARRIED" || user.maritalStatus === "WIDOWED") && (
+                                <>
+                                  {user.spouse && (
+                                    <p className="text-sm text-gray-700">
+                                      <span className="font-medium">Conjoint:</span> {user.spouse}
+                                    </p>
+                                  )}
+                                  {user.spouseEmail && (
+                                    <p className="text-sm text-gray-700">
+                                      <span className="font-medium">Email conjoint:</span> {user.spouseEmail}
+                                    </p>
+                                  )}
+                                </>
                               )}
                             </>
                           ) : (

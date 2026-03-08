@@ -1,9 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/router";
 import { AdminLayout } from "../../components/AdminLayout";
+import * as XLSX from "xlsx";
+import { API_BASE_URL } from "../../utils/config";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000";
+interface ImportRow {
+  email: string;
+  firstName: string;
+  lastName: string;
+  matricule?: string;
+  role?: "ADMIN" | "EMPLOYEE";
+  password?: string;
+  points?: number;
+}
 
 interface UserRow {
   id: number;
@@ -28,7 +37,38 @@ export default function AdminUsersPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<number | null>(null);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importPreviewRows, setImportPreviewRows] = useState<ImportRow[]>([]);
+  const [importDefaultPassword, setImportDefaultPassword] = useState("MotDePasse1!");
+  const [importDefaultPoints, setImportDefaultPoints] = useState(0);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importResult, setImportResult] = useState<{ created: number; skipped: number; errors: number; details?: any } | null>(null);
+  const importFileInputRef = useRef<HTMLInputElement>(null);
 
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  function validateImportRow(row: ImportRow, index: number): string[] {
+    const err: string[] = [];
+    if (!row.email?.trim()) err.push("Email manquant");
+    else if (!emailRegex.test(row.email.trim())) err.push("Email invalide");
+    if (!row.firstName?.trim()) err.push("Prénom manquant");
+    if (!row.lastName?.trim()) err.push("Nom manquant");
+    return err;
+  }
+  const importRowErrors = importPreviewRows.map((r, i) => validateImportRow(r, i));
+  const importValidCount = importRowErrors.filter((e) => e.length === 0).length;
+  const importInvalidCount = importPreviewRows.length - importValidCount;
+  const duplicateEmails = (() => {
+    const seen = new Map<string, number[]>();
+    importPreviewRows.forEach((r, i) => {
+      const e = (r.email || "").trim().toLowerCase();
+      if (!e) return;
+      if (!seen.has(e)) seen.set(e, []);
+      seen.get(e)!.push(i + 1);
+    });
+    return [...seen.entries()].filter(([, rows]) => rows.length > 1);
+  })();
+
+  const [searchQuery, setSearchQuery] = useState("");
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -281,6 +321,192 @@ export default function AdminUsersPage() {
     }
   }
 
+  function normalizeHeader(h: string): string {
+    return (h || "").trim().toLowerCase().replace(/\s+/g, "").replace(/[éèê]/g, "e").replace(/[àâ]/g, "a");
+  }
+
+  function parseFileToImportRows(file: File): Promise<ImportRow[]> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const raw = e.target?.result;
+          if (!raw) {
+            resolve([]);
+            return;
+          }
+          const rows: ImportRow[] = [];
+          const name = (file.name || "").toLowerCase();
+
+          if (name.endsWith(".csv")) {
+            const text = typeof raw === "string" ? raw : new TextDecoder().decode(raw as ArrayBuffer);
+            const lines = text.split(/\r?\n/).filter((l) => l.trim());
+            if (lines.length < 2) {
+              resolve([]);
+              return;
+            }
+            const sep = text.includes(";") ? ";" : ",";
+            const headers = lines[0].split(sep).map((c) => normalizeHeader((c || "").trim().replace(/^["']|["']$/g, "")));
+            const findCol = (...names: string[]) => {
+              for (const n of names) {
+                const i = headers.findIndex((h) => h === n || h.includes(n));
+                if (i >= 0) return i;
+              }
+              return -1;
+            };
+            const emailIdx = findCol("email");
+            const prenomIdx = findCol("prenom", "prénom", "firstname");
+            const nomIdx = findCol("nom", "lastname");
+            const matriculeIdx = findCol("matricule");
+            const roleIdx = findCol("role", "rôle");
+            const passwordIdx = findCol("password", "motdepasse", "motdepasse");
+            const pointsIdx = findCol("points");
+
+            for (let i = 1; i < lines.length; i++) {
+              const cells = lines[i].split(sep).map((c) => (c || "").trim().replace(/^["']|["']$/g, ""));
+              const email = (emailIdx >= 0 ? cells[emailIdx] : "")?.trim() || "";
+              const firstName = (prenomIdx >= 0 ? cells[prenomIdx] : cells[1])?.trim() || "";
+              const lastName = (nomIdx >= 0 ? cells[nomIdx] : cells[2])?.trim() || "";
+              if (!email && !firstName && !lastName) continue;
+              rows.push({
+                email,
+                firstName: firstName || "-",
+                lastName: lastName || "-",
+                matricule: matriculeIdx >= 0 && cells[matriculeIdx] ? cells[matriculeIdx] : undefined,
+                role: roleIdx >= 0 && cells[roleIdx]?.toUpperCase() === "ADMIN" ? "ADMIN" : "EMPLOYEE",
+                password: passwordIdx >= 0 && cells[passwordIdx] ? cells[passwordIdx] : undefined,
+                points: pointsIdx >= 0 && cells[pointsIdx] ? parseInt(cells[pointsIdx], 10) || 0 : undefined,
+              });
+            }
+          } else {
+            const wb = XLSX.read(raw, { type: raw instanceof ArrayBuffer ? "array" : "string" });
+            const firstSheet = wb.Sheets[wb.SheetNames[0]];
+            if (!firstSheet) {
+              resolve([]);
+              return;
+            }
+            const data = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: "" }) as (string | number)[][];
+            if (!data || data.length < 2) {
+              resolve([]);
+              return;
+            }
+            const headerRow = (data[0] || []).map((c) => normalizeHeader(String(c)));
+            const findCol = (...names: string[]) => {
+              for (const n of names) {
+                const i = headerRow.findIndex((h) => h === n || h.includes(n));
+                if (i >= 0) return i;
+              }
+              return -1;
+            };
+            const emailCol = findCol("email");
+            const prenomCol = findCol("prenom", "prénom", "firstname");
+            const nomCol = findCol("nom", "lastname");
+            const matriculeCol = findCol("matricule");
+            const roleCol = findCol("role", "rôle");
+            const passwordCol = findCol("password", "motdepasse");
+            const pointsCol = findCol("points");
+
+            for (let i = 1; i < data.length; i++) {
+              const row = data[i] as (string | number)[];
+              if (!Array.isArray(row)) continue;
+              const get = (j: number) => (j >= 0 && row[j] != null ? String(row[j]).trim() : "");
+              const email = get(emailCol);
+              const firstName = get(prenomCol >= 0 ? prenomCol : 1);
+              const lastName = get(nomCol >= 0 ? nomCol : 2);
+              if (!email && !firstName && !lastName) continue;
+              const roleVal = get(roleCol).toUpperCase();
+              rows.push({
+                email,
+                firstName: firstName || "-",
+                lastName: lastName || "-",
+                matricule: matriculeCol >= 0 ? get(matriculeCol) || undefined : undefined,
+                role: roleVal === "ADMIN" ? "ADMIN" : "EMPLOYEE",
+                password: passwordCol >= 0 ? get(passwordCol) || undefined : undefined,
+                points: pointsCol >= 0 ? (parseInt(get(pointsCol), 10) || 0) : undefined,
+              });
+            }
+          }
+          resolve(rows);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = () => reject(new Error("Impossible de lire le fichier"));
+      if (file.name?.toLowerCase().endsWith(".csv")) {
+        reader.readAsText(file, "UTF-8");
+      } else {
+        reader.readAsArrayBuffer(file);
+      }
+    });
+  }
+
+  async function handleImportFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportResult(null);
+    try {
+      const rows = await parseFileToImportRows(file);
+      setImportPreviewRows(rows);
+    } catch (err: any) {
+      setError(err?.message || "Erreur lors de la lecture du fichier");
+      setImportPreviewRows([]);
+    }
+    e.target.value = "";
+  }
+
+  async function handleDoImport() {
+    const toSend = importPreviewRows.filter((_, i) => importRowErrors[i].length === 0);
+    if (toSend.length === 0) return;
+    const token = typeof window !== "undefined" ? localStorage.getItem("ocp_token") : null;
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
+    setImportLoading(true);
+    setError(null);
+    setImportResult(null);
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/users/import`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          users: toSend.map((r) => ({
+            email: r.email,
+            firstName: r.firstName,
+            lastName: r.lastName,
+            matricule: r.matricule || null,
+            role: r.role || "EMPLOYEE",
+            password: r.password || undefined,
+            points: r.points ?? importDefaultPoints,
+          })),
+          defaultPassword: importDefaultPassword.trim() || "MotDePasse1!",
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.message || "Erreur lors de l'import");
+      }
+      const result = await res.json();
+      setImportResult(result);
+      if (result.created > 0) {
+        const loadRes = await fetch(`${API_BASE_URL}/admin/users`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (loadRes.ok) {
+          const data = await loadRes.json();
+          setUsers(data);
+        }
+      }
+    } catch (e: any) {
+      setError(e?.message || "Erreur lors de l'import");
+    } finally {
+      setImportLoading(false);
+    }
+  }
+
   if (loading) {
     return (
       <AdminLayout>
@@ -301,6 +527,25 @@ export default function AdminUsersPage() {
         </h1>
         <div className="flex gap-2">
           <button
+                onClick={() => {
+                  setImportPreviewRows([]);
+                  setImportResult(null);
+                  setImportDefaultPassword("MotDePasse1!");
+                  setImportDefaultPoints(0);
+                  setIsImportModalOpen(true);
+                }}
+            className="px-4 py-2 rounded border border-emerald-600 text-emerald-700 text-sm font-medium hover:bg-emerald-50"
+          >
+            Importer (CSV/Excel)
+          </button>
+          <input
+            ref={importFileInputRef}
+            type="file"
+            accept=".csv,.xlsx,.xls"
+            className="hidden"
+            onChange={handleImportFileChange}
+          />
+          <button
             onClick={openCreateModal}
             className="px-4 py-2 rounded bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700"
           >
@@ -316,12 +561,43 @@ export default function AdminUsersPage() {
         )}
 
         <section className="border border-slate-200 bg-white rounded-lg p-4 shadow-sm">
-          <h2 className="text-lg font-medium mb-4">Liste des utilisateurs</h2>
-          {users.length === 0 ? (
-            <p className="text-sm text-slate-600">
-              Aucun utilisateur pour le moment.
-            </p>
-          ) : (
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+            <h2 className="text-lg font-medium">Liste des utilisateurs</h2>
+            <div className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Rechercher par nom, prénom ou matricule…"
+                className="w-full sm:w-72 rounded-lg border border-slate-300 pl-3 pr-9 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              />
+              <svg
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          </div>
+          {(() => {
+            const q = searchQuery.trim().toLowerCase();
+            const filteredUsers = q
+              ? users.filter(
+                  (u) =>
+                    (u.firstName?.toLowerCase().includes(q) ||
+                      u.lastName?.toLowerCase().includes(q) ||
+                      (u.matricule ?? "").toLowerCase().includes(q))
+                )
+              : users;
+            return filteredUsers.length === 0 ? (
+              <p className="text-sm text-slate-600">
+                {users.length === 0
+                  ? "Aucun utilisateur pour le moment."
+                  : "Aucun utilisateur ne correspond à la recherche."}
+              </p>
+            ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full text-xs md:text-sm border border-slate-200">
                 <thead className="bg-slate-50">
@@ -356,7 +632,7 @@ export default function AdminUsersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((u) => (
+                  {filteredUsers.map((u) => (
                     <tr key={u.id} className="hover:bg-slate-50">
                       <td className="border border-slate-200 px-2 py-1">
                         {u.id}
@@ -417,7 +693,8 @@ export default function AdminUsersPage() {
                 </tbody>
               </table>
             </div>
-          )}
+            );
+          })()}
         </section>
       </main>
       {isModalOpen && (
@@ -691,6 +968,218 @@ export default function AdminUsersPage() {
                   {saving ? "Suppression..." : "Supprimer"}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Import CSV/Excel */}
+      {isImportModalOpen && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-slate-900">
+                Importer des utilisateurs (CSV ou Excel)
+              </h2>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsImportModalOpen(false);
+                  setImportPreviewRows([]);
+                  setImportResult(null);
+                }}
+                className="text-slate-500 hover:text-slate-700"
+              >
+                <span className="text-xl">×</span>
+              </button>
+            </div>
+            <div className="px-5 py-4 overflow-y-auto flex-1">
+              <p className="text-sm text-slate-600 mb-3">
+                Choisissez un fichier CSV ou Excel avec des colonnes : <strong>email</strong>, <strong>prénom</strong>, <strong>nom</strong> (obligatoires). Optionnel : matricule, rôle (ADMIN/EMPLOYEE), mot de passe, points.
+              </p>
+              <p className="text-xs text-slate-500 mb-3">
+                <a
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    const csv = "email;prénom;nom;matricule;rôle;mot de passe;points\njean.dupont@ocp.ma;Jean;Dupont;M12345;EMPLOYEE;;0\nmarie.martin@ocp.ma;Marie;Martin;M67890;EMPLOYEE;;0";
+                    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "modele_import_utilisateurs.csv";
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="text-emerald-600 hover:underline"
+                >
+                  Télécharger un modèle CSV (exemple)
+                </a>
+              </p>
+              <div className="flex flex-wrap items-center gap-3 mb-4">
+                <button
+                  type="button"
+                  onClick={() => importFileInputRef.current?.click()}
+                  className="px-3 py-2 rounded border border-slate-300 text-slate-700 text-sm hover:bg-slate-50"
+                >
+                  Choisir un fichier CSV ou Excel
+                </button>
+                <label className="flex items-center gap-2 text-sm text-slate-600">
+                  Mot de passe par défaut (si absent du fichier) :
+                  <input
+                    type="text"
+                    value={importDefaultPassword}
+                    onChange={(e) => setImportDefaultPassword(e.target.value)}
+                    className="w-40 rounded border border-slate-300 px-2 py-1 text-sm"
+                    placeholder="MotDePasse1!"
+                  />
+                </label>
+                <label className="flex items-center gap-2 text-sm text-slate-600">
+                  Points par défaut (si absent du fichier) :
+                  <input
+                    type="number"
+                    min={0}
+                    value={importDefaultPoints}
+                    onChange={(e) => setImportDefaultPoints(Number(e.target.value) || 0)}
+                    className="w-20 rounded border border-slate-300 px-2 py-1 text-sm"
+                  />
+                </label>
+              </div>
+              {importPreviewRows.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-2 text-sm">
+                  <span className="text-emerald-700 font-medium">{importValidCount} ligne(s) valide(s)</span>
+                  {importInvalidCount > 0 && (
+                    <span className="text-red-600">{importInvalidCount} ligne(s) invalide(s) (seront ignorées)</span>
+                  )}
+                  {duplicateEmails.length > 0 && (
+                    <span className="text-amber-700">
+                      Attention : {duplicateEmails.length} email(s) en double dans le fichier
+                    </span>
+                  )}
+                </div>
+              )}
+              {importResult && (
+                <div className="mb-4 p-3 rounded-lg bg-slate-50 border border-slate-200 text-sm">
+                  <p className="font-medium text-slate-800">
+                    {importResult.created} créé(s), {importResult.skipped} ignoré(s) (déjà existants), {importResult.errors} erreur(s).
+                  </p>
+                  {importResult.details?.errors?.length > 0 && (
+                    <ul className="mt-2 text-red-600 list-disc list-inside">
+                      {importResult.details.errors.slice(0, 5).map((err: any, i: number) => (
+                        <li key={i}>Ligne {err.row}: {err.message}</li>
+                      ))}
+                      {importResult.details.errors.length > 5 && (
+                        <li>… et {importResult.details.errors.length - 5} autre(s) erreur(s)</li>
+                      )}
+                    </ul>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!importResult?.details) return;
+                      const lines: string[] = ["Ligne;Email;Statut;Détail"];
+                      (importResult.details.skipped || []).forEach((s: any) => {
+                        lines.push(`${s.row};${s.email || ""};Ignoré;${s.reason || ""}`);
+                      });
+                      (importResult.details.errors || []).forEach((e: any) => {
+                        lines.push(`${e.row};${e.email || ""};Erreur;${e.message || ""}`);
+                      });
+                      lines.push(`Résumé;;Créés;${importResult.created}`);
+                      const csv = "\uFEFF" + lines.join("\n");
+                      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `rapport_import_${new Date().toISOString().slice(0, 10)}.csv`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                    className="mt-2 text-emerald-600 hover:underline text-xs font-medium"
+                  >
+                    Télécharger le rapport (CSV)
+                  </button>
+                </div>
+              )}
+              {importPreviewRows.length > 0 && (
+                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                  <p className="px-3 py-2 bg-slate-50 text-xs font-medium text-slate-600">
+                    Aperçu ({importPreviewRows.length} ligne(s))
+                  </p>
+                  <div className="overflow-x-auto max-h-48 overflow-y-auto">
+                    <table className="min-w-full text-xs border border-slate-200">
+                      <thead className="bg-slate-100 sticky top-0">
+                        <tr>
+                          <th className="border-b border-slate-200 px-2 py-1 text-left">Ligne</th>
+                          <th className="border-b border-slate-200 px-2 py-1 text-left">Email</th>
+                          <th className="border-b border-slate-200 px-2 py-1 text-left">Prénom</th>
+                          <th className="border-b border-slate-200 px-2 py-1 text-left">Nom</th>
+                          <th className="border-b border-slate-200 px-2 py-1 text-left">Matricule</th>
+                          <th className="border-b border-slate-200 px-2 py-1 text-left">Rôle</th>
+                          <th className="border-b border-slate-200 px-2 py-1 text-left">Statut</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importPreviewRows.slice(0, 15).map((r, i) => {
+                          const errs = importRowErrors[i] || [];
+                          const invalid = errs.length > 0;
+                          return (
+                            <tr
+                              key={i}
+                              className={`border-b border-slate-100 ${invalid ? "bg-red-50" : ""}`}
+                            >
+                              <td className="px-2 py-1">{i + 1}</td>
+                              <td className="px-2 py-1">{r.email}</td>
+                              <td className="px-2 py-1">{r.firstName}</td>
+                              <td className="px-2 py-1">{r.lastName}</td>
+                              <td className="px-2 py-1">{r.matricule || "-"}</td>
+                              <td className="px-2 py-1">{r.role || "EMPLOYEE"}</td>
+                              <td className="px-2 py-1">
+                                {invalid ? (
+                                  <span className="text-red-600 text-xs" title={errs.join(", ")}>
+                                    Invalide : {errs.join(", ")}
+                                  </span>
+                                ) : (
+                                  <span className="text-emerald-600 text-xs">OK</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  {importPreviewRows.length > 15 && (
+                    <p className="px-3 py-1 text-xs text-slate-500 bg-slate-50">
+                      … et {importPreviewRows.length - 15} autre(s) ligne(s)
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="px-5 py-4 border-t border-slate-200 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsImportModalOpen(false);
+                  setImportPreviewRows([]);
+                  setImportResult(null);
+                }}
+                className="px-4 py-2 rounded border border-slate-300 text-slate-700 text-sm hover:bg-slate-50"
+              >
+                Fermer
+              </button>
+              <button
+                type="button"
+                onClick={handleDoImport}
+                disabled={importValidCount === 0 || importLoading}
+                className="px-4 py-2 rounded bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {importLoading
+                  ? "Import en cours…"
+                  : importValidCount === 0
+                    ? "Aucune ligne valide à importer"
+                    : `Lancer l'import (${importValidCount} ligne(s) valide(s))`}
+              </button>
             </div>
           </div>
         </div>
