@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # 🏖️ Plateforme Excursion OCP
 
 Plateforme de gestion des excursions pour les employés de l'Office Chérifien des Phosphates (OCP).
@@ -217,6 +216,10 @@ Plateforme Excursion/
 │   ├── components/           # Composants React
 │   ├── public/               # Assets statiques
 │   └── package.json
+├── presentation/             # Slides HTML (démo) + captures Playwright
+│   ├── index.html
+│   ├── capture-screenshots.mjs
+│   └── screenshots/
 └── README.md
 ```
 
@@ -281,6 +284,14 @@ Le système de sélection automatique fonctionne comme suit :
 - `npm run start` : Démarre le serveur de production
 - `npm run lint` : Vérifie le code avec ESLint
 
+### Racine
+- `npm run dev` : Lance backend + frontend (après `npm install` à la racine)
+- `npm run presentation:capture` : régénère les captures dans `presentation/screenshots/` (nécessite l’app en cours d’exécution et `npm install` dans `presentation/`)
+
+### Présentation
+- Ouvrir `presentation/index.html` dans le navigateur pour la version slides.
+- Détail : `presentation/screenshots/README.txt`
+
 ## 🔧 API Endpoints
 
 ### Authentification
@@ -330,6 +341,7 @@ Le système de sélection automatique fonctionne comme suit :
 
 - `GUIDE_SELECTION.md` - Guide pour utiliser le système de sélection
 - `SOLUTION_COMPLETE.md` - Documentation technique sur la synchronisation des données
+- Dépôt GitHub : [github.com/Aokji2004/plateforme-excursion](https://github.com/Aokji2004/plateforme-excursion)
 
 ## 👥 Contribution
 
@@ -341,8 +353,5 @@ Propriétaire - OCP
 
 ---
 
-**Version**: 1.0.0  
-**Dernière mise à jour**: Janvier 2025
-=======
-# plateforme-excursion
->>>>>>> 9166ad78ad073795dc10764ecbda39bb98bba0c6
+**Version** : 1.0.0  
+**Dernière mise à jour** : avril 2026
