@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Plateforme Excursion OCP — Présentation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ocp-green: #176139;
+      --ocp-green-dark: #0f4a2a;
+      --teal: #0d9488;
+      --slate: #1e293b;
+      --muted: #64748b;
+      --cream: #f8faf8;
+      --card: #ffffff;
+      --accent: #c9a227;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: "DM Sans", system-ui, sans-serif;
+      background: var(--cream);
+      color: var(--slate);
+      line-height: 1.55;
+      overflow-x: hidden;
+    }
+    .slide {
+      min-height: 100vh;
+      padding: 2.5rem clamp(1.25rem, 4vw, 3.5rem);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      page-break-after: always;
+      border-bottom: 1px solid #e2e8e0;
+    }
+    .slide.tall { justify-content: flex-start; padding-top: 2rem; }
+    .slide.dark {
+      background: linear-gradient(145deg, var(--ocp-green-dark) 0%, var(--ocp-green) 45%, #0a3020 100%);
+      color: #f1f5f9;
+      border-bottom: none;
+    }
+    .slide.dark .muted { color: rgba(255,255,255,0.78); }
+    .slide.dark h2 { color: #fff; }
+    .slide.dark .kicker { color: #a7f3d0; }
+    .kicker {
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--teal);
+      margin-bottom: 0.65rem;
+    }
+    h1 {
+      font-family: "Fraunces", Georgia, serif;
+      font-size: clamp(2rem, 5vw, 3.1rem);
+      font-weight: 700;
+      line-height: 1.12;
+      margin-bottom: 0.85rem;
+    }
+    h2 {
+      font-family: "Fraunces", Georgia, serif;
+      font-size: clamp(1.5rem, 3.2vw, 2.15rem);
+      font-weight: 600;
+      color: var(--ocp-green-dark);
+      margin-bottom: 1rem;
+    }
+    h3 { font-size: 1.05rem; font-weight: 600; color: var(--ocp-green); margin: 1rem 0 0.4rem; }
+    p, li { font-size: clamp(0.92rem, 1.4vw, 1.02rem); }
+    p { margin-bottom: 0.75rem; max-width: 48rem; }
+    ul, ol { margin: 0.4rem 0 0.8rem 1.15rem; max-width: 46rem; }
+    li { margin-bottom: 0.4rem; }
+    .muted { color: var(--muted); font-size: 0.92rem; }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.25rem;
+      margin-top: 1rem;
+      max-width: 52rem;
+    }
+    .card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 1.15rem 1.3rem;
+      box-shadow: 0 4px 24px rgba(15, 74, 42, 0.08);
+      border: 1px solid #e2e8e0;
+    }
+    .slide.dark .card {
+      background: rgba(255,255,255,0.09);
+      border-color: rgba(255,255,255,0.18);
+    }
+    .logo-strip { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem; }
+    .logo-strip .mark {
+      width: 46px; height: 46px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--teal), var(--ocp-green));
+    }
+    table.benefits {
+      width: 100%;
+      max-width: 48rem;
+      border-collapse: collapse;
+      margin-top: 0.75rem;
+      font-size: 0.88rem;
+    }
+    table.benefits th, table.benefits td {
+      border: 1px solid #e2e8e0;
+      padding: 0.55rem 0.75rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    table.benefits th { background: #ecfdf5; color: var(--ocp-green-dark); }
+    .slide.dark table.benefits th { background: rgba(255,255,255,0.12); color: #fff; }
+    .slide.dark table.benefits td { border-color: rgba(255,255,255,0.2); color: #e2e8f0; }
+    .shot {
+      margin-top: 1.25rem;
+      max-width: min(1000px, 100%);
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid #e2e8e0;
+      background: #fff;
+      box-shadow: 0 8px 32px rgba(15, 74, 42, 0.1);
+    }
+    .shot figcaption {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ocp-green-dark);
+      padding: 0.55rem 1rem;
+      background: #ecfdf5;
+      border-bottom: 1px solid #d1fae5;
+    }
+    .shot img {
+      width: 100%;
+      height: auto;
+      display: block;
+      max-height: min(58vh, 520px);
+      object-fit: contain;
+      object-position: top center;
+      background: #fafafa;
+    }
+    .shot.missing figcaption { background: #fef3c7; color: #92400e; }
+    .shot.missing .placeholder {
+      padding: 2.5rem 1.5rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .step-flow { counter-reset: st; list-style: none; margin-left: 0 !important; max-width: 46rem; }
+    .step-flow li {
+      position: relative;
+      padding-left: 2.4rem;
+      margin-bottom: 0.65rem;
+    }
+    .step-flow li::before {
+      counter-increment: st;
+      content: counter(st);
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1.65rem;
+      height: 1.65rem;
+      background: var(--ocp-green);
+      color: #fff;
+      border-radius: 50%;
+      font-size: 0.78rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .diagram-wrap {
+      margin-top: 1rem;
+      padding: 1rem;
+      background: #fff;
+      border: 1px solid #e2e8e0;
+      border-radius: 12px;
+      max-width: 720px;
+    }
+    .diagram-wrap svg { width: 100%; height: auto; display: block; }
+    .formula-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.85rem;
+      margin-top: 0.85rem;
+      max-width: 50rem;
+    }
+    .formula-box {
+      background: linear-gradient(180deg, #ecfdf5 0%, #fff 45%);
+      border: 2px solid var(--ocp-green);
+      border-radius: 10px;
+      padding: 0.9rem 1rem;
+      font-size: 0.88rem;
+    }
+    .formula-box strong { color: var(--ocp-green-dark); display: block; margin-bottom: 0.3rem; }
+    code { background: #e2e8f0; padding: 0.12rem 0.4rem; border-radius: 4px; font-size: 0.84em; }
+    pre.arch {
+      font-family: ui-monospace, monospace;
+      font-size: 0.8rem;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      margin: 0;
+      max-width: 44rem;
+    }
+    .toolbar {
+      position: fixed;
+      bottom: 1rem;
+      right: 1rem;
+      z-index: 100;
+      display: flex;
+      gap: 0.45rem;
+      align-items: center;
+      background: rgba(255,255,255,0.96);
+      padding: 0.45rem 0.75rem;
+      border-radius: 999px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+      border: 1px solid #e2e8e0;
+    }
+    .toolbar button {
+      font-family: inherit;
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 0.42rem 0.85rem;
+      border-radius: 999px;
+      border: none;
+      background: var(--ocp-green);
+      color: #fff;
+      cursor: pointer;
+    }
+    .toolbar span { font-size: 0.74rem; color: var(--muted); padding: 0 0.3rem; }
+    .toc-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem 2rem; max-width: 46rem; font-size: 0.88rem; line-height: 1.55; }
+    @media (max-width: 700px) { .toc-cols { grid-template-columns: 1fr; } }
+    .toc-cols ol { margin: 0; padding-left: 1.1rem; }
+    .tag { display: inline-block; font-size: 0.65rem; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 4px; background: #ecfdf5; color: var(--ocp-green-dark); margin-right: 0.35rem; }
+    @media print {
+      .toolbar { display: none; }
+      .slide { min-height: auto; padding: 1.25rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="deck" id="deck">
+
+    <!-- 1 -->
+    <section class="slide dark" id="s1">
+      <div class="logo-strip">
+        <div class="mark"></div>
+        <span style="font-weight:600; font-size:1.05rem; opacity:0.95">Office Chérifien des Phosphates</span>
+      </div>
+      <p class="kicker">Service social &amp; qualité de vie au travail</p>
+      <h1>Plateforme Excursion OCP</h1>
+      <p style="max-width:34rem; color:rgba(255,255,255,0.88);">
+        Une application web pour organiser les activités collectives, les inscriptions, les sélections et le suivi des collaborateurs — avec équité, traçabilité et moins de charge administrative.
+      </p>
+      <p style="margin-top:1.75rem; font-size:0.88rem; opacity:0.75;">Présentation — avril 2026</p>
+    </section>
+
+    <section class="slide tall" id="s2">
+      <p class="kicker">Plan de la présentation</p>
+      <h2>Organisation des slides</h2>
+      <div class="toc-cols">
+        <div>
+          <p><span class="tag">A</span><strong>Valeur métier</strong> (slides 3–8)</p>
+          <ol>
+            <li>Contexte sans outil numérique, mission, périmètre centralisé</li>
+            <li>Limites des anciens processus</li>
+            <li>Aide concrète au service social (tableau besoins / apports)</li>
+            <li>Synthèse : gains admin &amp; visibilité collaborateurs</li>
+          </ol>
+        </div>
+        <div>
+          <p><span class="tag">B</span><strong>Technique</strong> (9–16)</p>
+          <ul>
+            <li>Architecture 3 couches, frontend Next.js, API Prisma</li>
+            <li>PostgreSQL, sécurité JWT, déploiement &amp; maintenance</li>
+            <li>Parcours A→Z détaillé + schéma de flux</li>
+          </ul>
+          <p style="margin-top:0.75rem;"><span class="tag">C</span><strong>Démo écran par écran</strong> (17–30)</p>
+          <ul>
+            <li>Login, dashboard admin, activités, fiche, employé, lien public</li>
+            <li>Inscriptions, sélection, types, utilisateurs, famille, enfants</li>
+            <li>Historique, formules de points à la clôture</li>
+          </ul>
+          <p class="muted" style="margin-top:0.5rem; font-size:0.85rem;">Slide 31 : conclusion.</p>
+        </div>
+      </div>
+      <p class="muted" style="margin-top:1rem;">Navigation : flèches, Espace, ou boutons en bas à droite. Images : dossier <code>screenshots/</code> (générer avec <code>npm run capture</code>).</p>
+    </section>
+
+    <section class="slide" id="s3">
+      <p class="kicker">Contexte</p>
+      <h2>Sans plateforme : quelles difficultés ?</h2>
+      <ul>
+        <li><strong>Fichiers multiples</strong> (tableurs, e-mails, formulaires papier) : risque de versions différentes et de doublons.</li>
+        <li><strong>Temps de consolidation</strong> : recopier les listes pour le transport, l’hôtel ou la comptabilité.</li>
+        <li><strong>Questions répétitives</strong> des collaborateurs (« Suis-je pris ? », « Où en est ma liste d’attente ? »).</li>
+        <li><strong>Justification des sélections</strong> difficile si les critères ne sont pas tracés de la même façon pour chaque activité.</li>
+        <li><strong>Points d’accréditation</strong> : calculs manuels ou dispersés, risque d’erreur ou de double comptage.</li>
+      </ul>
+    </section>
+
+    <section class="slide" id="s4">
+      <p class="kicker">Rôle de la plateforme</p>
+      <h2>Une mission claire</h2>
+      <p>Offrir un <strong>point d’entrée unique</strong> pour tout le cycle de vie d’une activité sociale OCP : de la <strong>publication</strong> à la <strong>clôture</strong>, en passant par les candidatures, la sélection équitable, le suivi des paiements et l’attribution tracée des points.</p>
+      <p class="card" style="max-width:44rem;">Les <strong>administrateurs</strong> pilotent ; les <strong>collaborateurs</strong> consultent et postulent dans un cadre sécurisé (compte ou lien dédié avec matricule).</p>
+    </section>
+
+    <section class="slide" id="s5">
+      <p class="kicker">Périmètre fonctionnel</p>
+      <h2>Ce que le système centralise</h2>
+      <ol class="step-flow">
+        <li><strong>Catalogue</strong> : activités (famille, couple, célibataires), dates, capacité, programme par jour, tarifs indicatifs.</li>
+        <li><strong>Candidatures</strong> : par compte connecté ou formulaire public avec token unique par activité.</li>
+        <li><strong>Sélection</strong> : moteur de tri (points ou date), places limitées, listes d’attente ordonnées.</li>
+        <li><strong>Paiement</strong> : confirmation administrative (pas de paiement en ligne dans la version actuelle).</li>
+        <li><strong>Barème</strong> : types d’activité, paramètres agent / conjoint / enfant.</li>
+        <li><strong>Données sociales</strong> : situation familiale, enfants, pour alimenter les formules.</li>
+        <li><strong>Audit</strong> : historique des inscriptions, historique des points, exports.</li>
+      </ol>
+    </section>
+
+    <section class="slide" id="s6">
+      <p class="kicker">Limites des anciens processus</p>
+      <h2>Ce que nous éliminons</h2>
+      <div class="grid-2">
+        <div class="card">
+          <ul style="margin:0;">
+            <li>Tableaux non synchronisés entre services</li>
+            <li>Règles de sélection « dans la tête » ou non homogènes</li>
+            <li>Recherche lente d’une fiche collaborateur ou enfant</li>
+          </ul>
+        </div>
+        <div class="card">
+          <ul style="margin:0;">
+            <li>Recalcul manuel des points à chaque campagne</li>
+            <li>Absence de preuve horodatée en cas de litige</li>
+            <li>Charge téléphonique sur le service social</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7 -->
+    <section class="slide dark" id="s7">
+      <p class="kicker">Service social</p>
+      <h2>Comment elle aide le service social</h2>
+      <table class="benefits">
+        <thead>
+          <tr>
+            <th>Besoin</th>
+            <th>Apport concret</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Réduire la charge administrative</strong></td>
+            <td>Une base unique, filtres, recherche, exports (CSV, Excel, PDF) — moins de consolidation manuelle.</td>
+          </tr>
+          <tr>
+            <td><strong>Équité et clarté</strong></td>
+            <td>Sélection selon critères paramétrables (points ou date d’inscription), ordres et scores conservés, journal d’actions.</td>
+          </tr>
+          <tr>
+            <td><strong>Communication</strong></td>
+            <td>Lien ou QR par activité, textes d’instructions, espace employé en libre-service.</td>
+          </tr>
+          <tr>
+            <td><strong>Reporting &amp; contrôle</strong></td>
+            <td>Tableau de bord (indicateurs), historique des inscriptions et des points pour réponses à la direction ou audits.</td>
+          </tr>
+          <tr>
+            <td><strong>Cohérence accréditation</strong></td>
+            <td>Types d’activité, formules de points à la clôture, garde-fou contre le double crédit.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 8 -->
+    <section class="slide" id="s8">
+      <p class="kicker">Synthèse métier</p>
+      <h2>Moins de temps perdu, plus de maîtrise</h2>
+      <p>
+        Les équipes du service social passent moins de temps sur des tâches répétitives (recopier des listes, répondre aux mêmes questions sur les statuts) et plus sur le <strong>pilotage</strong> : arbitrer les moyens, préparer les campagnes, accompagner les cas particuliers.
+      </p>
+      <p class="card" style="max-width:44rem; margin-top:0.5rem;">
+        Les collaborateurs gagnent en <strong>visibilité</strong> : où en est ma candidature, combien de points ai-je, à quelles activités puis-je postuler — sans multiplier les appels téléphoniques.
+      </p>
+    </section>
+
+    <!-- 9 -->
+    <section class="slide tall" id="s9">
+      <p class="kicker">Partie technique</p>
+      <h2>Architecture en trois couches</h2>
+      <p>Le navigateur exécute l’interface ; l’API applique les règles métier et la persistance ; PostgreSQL garantit l’intégrité des données. Les échanges passent en <strong>HTTPS</strong> et en <strong>JSON</strong>.</p>
+      <div class="card" style="max-width:44rem;">
+        <pre class="arch">┌─────────────────────────────────────────────────────────┐
+│  Navigateur (employés &amp; administrateurs)                  │
+│  Next.js · React · pages login, admin, employé, public   │
+└───────────────────────────┬─────────────────────────────┘
+                            │ JSON · JWT (Authorization)
+┌───────────────────────────▼─────────────────────────────┐
+│  API Node.js · Express · TypeScript · Prisma ORM        │
+└───────────────────────────┬─────────────────────────────┘
+                            │
+┌───────────────────────────▼─────────────────────────────┐
+│  PostgreSQL — utilisateurs, activités, inscriptions,     │
+│  historique des points, journal de sélection             │
+└─────────────────────────────────────────────────────────┘</pre>
+      </div>
+    </section>
+
+    <!-- 10 -->
+    <section class="slide" id="s10">
+      <p class="kicker">Frontend</p>
+      <h2>Interface Next.js / React</h2>
+      <ul>
+        <li><strong>Pages publiques</strong> : connexion, formulaire de candidature via token (sans compte).</li>
+        <li><strong>Espace employé</strong> : catalogue, candidatures, suivi des statuts, historique des points.</li>
+        <li><strong>Console admin</strong> : dashboard, activités, inscriptions, sélection, utilisateurs, données familiales, historique.</li>
+        <li><strong>Expérience</strong> : navigation par cartes et onglets, messages d’erreur explicites, formulaires validés côté client et serveur.</li>
+      </ul>
+    </section>
+
+    <!-- 11 -->
+    <section class="slide" id="s11">
+      <p class="kicker">Backend &amp; API</p>
+      <h2>Express, TypeScript, Prisma</h2>
+      <ul>
+        <li><strong>REST</strong> : ressources activités, inscriptions, utilisateurs, types, clôture, exports.</li>
+        <li><strong>Prisma</strong> : modèle typé, requêtes sûres, migrations versionnées avec le dépôt.</li>
+        <li><strong>Règles métier</strong> : transitions de statut, calcul de rang à la sélection, crédit des points idempotent (<code>pointsCreditedAt</code>).</li>
+        <li><strong>Journalisation</strong> : traçabilité des actions sensibles (sélection, ajustements de points).</li>
+      </ul>
+    </section>
+
+    <!-- 12 -->
+    <section class="slide" id="s12">
+      <p class="kicker">Données</p>
+      <h2>PostgreSQL — entités principales</h2>
+      <ul>
+        <li><strong>Utilisateurs</strong> : comptes, rôles, matricule, lien avec situation familiale et enfants.</li>
+        <li><strong>Activités</strong> : capacité, dates, type, programme, lien d’inscription public.</li>
+        <li><strong>Inscriptions</strong> : statuts (<code>INSCRIT</code>, <code>SELECTIONNE</code>, <code>ATTENTE</code>, <code>FINAL</code>, etc.), ordre, scores pour le tri.</li>
+        <li><strong>Barème</strong> : types d’activité et coefficients ; historique des mouvements de points.</li>
+      </ul>
+    </section>
+
+    <!-- 13 -->
+    <section class="slide" id="s13">
+      <p class="kicker">Sécurité</p>
+      <h2>Authentification et durcissement</h2>
+      <ul>
+        <li><strong>JWT</strong> après login ; rôle employé ou admin vérifié sur les routes protégées.</li>
+        <li><strong>Mots de passe</strong> : hachage bcrypt, jamais stockés en clair.</li>
+        <li><strong>HTTP</strong> : en-têtes de sécurité, CORS restreint en production.</li>
+        <li><strong>Tokens publics</strong> : liens d’inscription limités à une activité, révocables en régénérant le lien.</li>
+      </ul>
+    </section>
+
+    <!-- 14 -->
+    <section class="slide" id="s14">
+      <p class="kicker">Exploitation</p>
+      <h2>Déploiement et maintenance</h2>
+      <ul>
+        <li><strong>Hébergement</strong> : frontend et API séparables (ex. Vercel / Render) avec variables d’environnement.</li>
+        <li><strong>Base</strong> : instance PostgreSQL managée ; sauvegardes et restauration documentées pour la continuité.</li>
+        <li><strong>Évolutions</strong> : schéma évolutif via migrations Prisma ; scripts d’import ou de démo pour les environnements de test.</li>
+        <li><strong>Santé</strong> : point de contrôle HTTP (health) pour la supervision.</li>
+      </ul>
+    </section>
+
+    <!-- 15 -->
+    <section class="slide" id="s15">
+      <p class="kicker">Fonctionnement global</p>
+      <h2>De A à Z — les étapes détaillées</h2>
+      <ol class="step-flow">
+        <li><strong>Accès</strong> : connexion (ou candidature via lien public sans compte).</li>
+        <li><strong>Découverte</strong> : consultation des activités ouvertes (cartes, détails, dates d’inscription).</li>
+        <li><strong>Candidature</strong> : inscription à une activité → statut <code>INSCRIT</code> en base.</li>
+        <li><strong>Sélection</strong> : l’admin lance le tirage (places, critère points ou date) → <code>SELECTIONNE</code> / <code>ATTENTE</code>.</li>
+        <li><strong>Paiement</strong> : confirmation par l’admin → <code>FINAL</code> pour les retenus ayant réglé.</li>
+        <li><strong>Clôture</strong> : fin de campagne → crédit des points selon le barème, historique mis à jour.</li>
+        <li><strong>Suivi</strong> : historique, exports, tableau de bord pour le pilotage.</li>
+      </ol>
+    </section>
+
+    <!-- 16 -->
+    <section class="slide" id="s16">
+      <p class="kicker">Schéma du flux</p>
+      <h2>Vue linéaire du cycle</h2>
+      <div class="diagram-wrap">
+        <svg viewBox="0 0 680 88" xmlns="http://www.w3.org/2000/svg" font-family="DM Sans,sans-serif" font-size="10">
+          <defs><marker id="flowM" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#176139"/></marker></defs>
+          <rect x="4" y="22" width="72" height="40" rx="6" fill="#176139"/><text x="40" y="46" text-anchor="middle" fill="#fff" font-weight="600">Login</text>
+          <line x1="76" y1="42" x2="92" y2="42" stroke="#176139" stroke-width="2" marker-end="url(#flowM)"/>
+          <rect x="92" y="22" width="78" height="40" rx="6" fill="#0d9488"/><text x="131" y="46" text-anchor="middle" fill="#fff">Activités</text>
+          <line x1="170" y1="42" x2="186" y2="42" stroke="#176139" stroke-width="2" marker-end="url(#flowM)"/>
+          <rect x="186" y="22" width="72" height="40" rx="6" fill="#64748b"/><text x="222" y="46" text-anchor="middle" fill="#fff">Inscrit</text>
+          <line x1="258" y1="42" x2="274" y2="42" stroke="#176139" stroke-width="2" marker-end="url(#flowM)"/>
+          <rect x="274" y="22" width="88" height="40" rx="6" fill="#176139"/><text x="318" y="46" text-anchor="middle" fill="#fff">Sélection</text>
+          <line x1="362" y1="42" x2="378" y2="42" stroke="#176139" stroke-width="2" marker-end="url(#flowM)"/>
+          <rect x="378" y="22" width="82" height="40" rx="6" fill="#0f766e"/><text x="419" y="46" text-anchor="middle" fill="#fff">Paiement</text>
+          <line x1="460" y1="42" x2="476" y2="42" stroke="#176139" stroke-width="2" marker-end="url(#flowM)"/>
+          <rect x="476" y="22" width="78" height="40" rx="6" fill="#c9a227"/><text x="515" y="46" text-anchor="middle" fill="#fff">Clôture</text>
+          <line x1="554" y1="42" x2="570" y2="42" stroke="#176139" stroke-width="2" marker-end="url(#flowM)"/>
+          <rect x="570" y="22" width="100" height="40" rx="6" fill="#ecfdf5" stroke="#176139" stroke-width="2"/><text x="620" y="46" text-anchor="middle" fill="#0f4a2a" font-weight="600">Points</text>
+        </svg>
+      </div>
+    </section>
+
+    <!-- 17 -->
+    <section class="slide tall" id="s17">
+      <p class="kicker">Étape 1 — Accès</p>
+      <h2>Connexion à la plateforme</h2>
+      <p>L’utilisateur saisit son <strong>e-mail professionnel</strong> (ou personnel enregistré) et son <strong>mot de passe</strong>. Le système délivre un jeton sécurisé (JWT) et redirige vers l’espace <strong>employé</strong> ou <strong>administrateur</strong> selon le profil.</p>
+      <figure class="shot">
+        <figcaption>Interface — page de connexion</figcaption>
+        <img src="screenshots/01-login.png" alt="Connexion OCP Excursions"
+          onerror="this.style.display='none'; this.parentElement.classList.add('missing'); this.parentElement.querySelector('.ph').style.display='block';" />
+        <div class="placeholder ph" style="display:none">Image absente : lancez <code>npm run dev</code> puis dans <code>presentation/</code> : <code>npm run capture</code></div>
+      </figure>
+    </section>
+
+    <!-- 18 -->
+    <section class="slide tall" id="s18">
+      <p class="kicker">Pilotage — administrateur</p>
+      <h2>Tableau de bord</h2>
+      <p>Vue d’ensemble : nombre d’activités, inscriptions, répartition par type (famille, couple, célibataires), indicateurs liés aux profils et aux enfants — pour arbitrer et rendre compte rapidement.</p>
+      <figure class="shot">
+        <figcaption>Interface — dashboard administrateur</figcaption>
+        <img src="screenshots/02-dashboard-admin.png" alt="Dashboard admin" onerror="this.style.display='none'; this.parentElement.classList.add('missing'); this.parentElement.querySelector('.ph').style.display='block';" />
+        <div class="placeholder ph" style="display:none">Capture : <code>npm run capture</code> dans <code>presentation/</code></div>
+      </figure>
+    </section>
+
+    <!-- 19 -->
+    <section class="slide tall" id="s19">
+      <p class="kicker">Étape 2 — Catalogue</p>
+      <h2>Activités proposées</h2>
+      <p>Les activités <strong>ouvertes</strong> apparaissent sous forme de cartes (ville, dates, type, places). L’admin crée et met à jour les offres ; le collaborateur voit ce à quoi il peut postuler.</p>
+      <figure class="shot">
+        <figcaption>Interface — liste des activités</figcaption>
+        <img src="screenshots/03-activites.png" alt="Activités" onerror="this.style.display='none'; this.parentElement.classList.add('missing'); this.parentElement.querySelector('.ph').style.display='block';" />
+        <div class="placeholder ph" style="display:none">Capture : <code>npm run capture</code></div>
+      </figure>
+    </section>
+
+    <!-- 20 -->
+    <section class="slide tall" id="s20">
+      <p class="kicker">Étape 3 — Détail &amp; réservation</p>
+      <h2>Fiche d’une activité</h2>
+      <p>Sur la fiche : informations complètes, onglets par statut (inscrits, sélectionnés, liste d’attente, liste finale, refusés), actions (paiement, promotion, lien public de candidature). C’est le centre opérationnel pour une excursion donnée.</p>
+      <figure class="shot">
+        <figcaption>Interface — fiche activité et listes</figcaption>
+        <img src="screenshots/04-fiche-activite.png" alt="Fiche activité" onerror="this.style.display='none'; this.parentElement.classList.add('missing'); this.parentElement.querySelector('.ph').style.display='block';" />
+        <div class="placeholder ph" style="display:none">Capture : <code>npm run capture</code></div>
+      </figure>
+    </section>
+
+    <!-- 21 -->
+    <section class="slide tall" id="s21">
+      <p class="kicker">Espace collaborateur</p>
+      <h2>Inscription (parcours employé connecté)</h2>
+      <p>Le collaborateur consulte les activités disponibles, postule en un clic ; il suit ses candidatures et l’<strong>historique de ses points</strong> dans le même espace.</p>
+      <figure class="shot">
+        <figcaption>Interface — tableau de bord employé</figcaption>
+        <img src="screenshots/13-dashboard-employe.png" alt="Dashboard employé" onerror="this.style.display='none'; this.parentElement.classList.add('missing'); this.parentElement.querySelector('.ph').style.display='block';" />
+        <div class="placeholder ph" style="display:none">Capture : <code>npm run capture</code></div>
+      </figure>
+    </section>
+
+    <!-- 22 -->
+    <section class="slide tall" id="s22">
+      <p class="kicker">Candidature sans compte</p>
+      <h2>Lien dédié par activité</h2>
+      <p>Pour les campagnes larges : URL avec un <strong>token</strong> unique ; le matricule identifie le collaborateur (création de profil minimal si besoin, complété ensuite par l’admin).</p>
+      <figure class="shot">
+        <figcaption>Interface — formulaire public de candidature</figcaption>
+        <img src="screenshots/12-candidature-publique.png" alt="Candidature publique" onerror="this.style.display='none'; this.parentElement.classList.add('missing'); this.parentElement.querySelector('.ph').style.display='block';" />
+        <div class="placeholder ph" style="display:none">Capture : <code>npm run capture</code> (nécessite lien généré sur une activité)</div>
+      </figure>
+    </section>
+
+    <!-- 23 -->
+    <section class="slide tall" id="s23">
+      <p class="kicker">Étape 4 — Suivi des dossiers</p>
+      <h2>Toutes les inscriptions</h2>
+      <p>Vue centralisée : filtres par activité et par statut, recherche par nom ou matricule, ajout manuel pour les cas exceptionnels.</p>
+      <figure class="shot">
+        <figcaption>Interface — inscriptions</figcaption>
+        <img src="screenshots/06-inscriptions.png" alt="Inscriptions" onerror="this.style.display='none'; this.parentElement.classList.add('missing'); this.parentElement.querySelector('.ph').style.display='block';" />
+        <div class="placeholder ph" style="display:none">Capture : <code>npm run capture</code></div>
+      </figure>
+    </section>
+
+    <!-- 24 -->
+    <section class="slide tall" id="s24">
+      <p class="kicker">Étape 5 — Sélection</p>
+      <h2>Répartition des places</h2>
+      <p>L’administrateur fixe le nombre de places et le <strong>critère</strong> : priorité aux personnes avec le moins de points accumulés, ou aux premiers inscrits ; critère secondaire en cas d’égalité. Résultat : sélectionnés et liste d’attente ordonnée.</p>
+      <figure class="shot">
+        <figcaption>Interface — lancement de la sélection</figcaption>
+        <img src="screenshots/05-selection.png" alt="Sélection" onerror="this.style.display='none'; this.parentElement.classList.add('missing'); this.parentElement.querySelector('.ph').style.display='block';" />
+        <div class="placeholder ph" style="display:none">Capture : <code>npm run capture</code></div>
+      </figure>
+    </section>
+
+    <!-- 25 -->
+    <section class="slide tall" id="s25">
+      <p class="kicker">Barème &amp; types</p>
+      <h2>Types d’activité (accréditation)</h2>
+      <p>Chaque type porte les paramètres du barème : points agent, conjoint, par enfant. Ils alimentent le calcul automatique lors de la <strong>clôture</strong>, selon le type d’excursion (famille, couple, célibataires).</p>
+      <figure class="shot">
+        <figcaption>Interface — types d’activité</figcaption>
+        <img src="screenshots/07-types-activite.png" alt="Types d'activité" onerror="this.style.display='none'; this.parentElement.classList.add('missing'); this.parentElement.querySelector('.ph').style.display='block';" />
+        <div class="placeholder ph" style="display:none">Capture : <code>npm run capture</code></div>
+      </figure>
+    </section>
+
+    <!-- 26 -->
+    <section class="slide tall" id="s26">
+      <p class="kicker">Annuaire</p>
+      <h2>Utilisateurs et points</h2>
+      <p>Gestion des comptes employés, matricules, solde de points ; ajustements manuels possibles pour les cas validés hors clôture automatique.</p>
+      <figure class="shot">
+        <figcaption>Interface — utilisateurs</figcaption>
+        <img src="screenshots/08-utilisateurs.png" alt="Utilisateurs" onerror="this.style.display='none'; this.parentElement.classList.add('missing'); this.parentElement.querySelector('.ph').style.display='block';" />
+        <div class="placeholder ph" style="display:none">Capture : <code>npm run capture</code></div>
+      </figure>
+    </section>
+
+    <!-- 27 -->
+    <section class="slide tall" id="s27">
+      <p class="kicker">Données sociales</p>
+      <h2>Situation familiale</h2>
+      <p>État civil et conjoint : nécessaires pour les formules « couple » et « famille » lors du crédit des points.</p>
+      <figure class="shot">
+        <figcaption>Interface — situation familiale</figcaption>
+        <img src="screenshots/09-situation-familiale.png" alt="Situation familiale" onerror="this.style.display='none'; this.parentElement.classList.add('missing'); this.parentElement.querySelector('.ph').style.display='block';" />
+        <div class="placeholder ph" style="display:none">Capture : <code>npm run capture</code></div>
+      </figure>
+    </section>
+
+    <!-- 28 -->
+    <section class="slide tall" id="s28">
+      <p class="kicker">Données sociales</p>
+      <h2>Enfants</h2>
+      <p>Fiches enfants rattachées au parent : utilisées pour la partie « famille » du barème (points par enfant).</p>
+      <figure class="shot">
+        <figcaption>Interface — gestion des enfants</figcaption>
+        <img src="screenshots/10-enfants.png" alt="Enfants" onerror="this.style.display='none'; this.parentElement.classList.add('missing'); this.parentElement.querySelector('.ph').style.display='block';" />
+        <div class="placeholder ph" style="display:none">Capture : <code>npm run capture</code></div>
+      </figure>
+    </section>
+
+    <!-- 29 -->
+    <section class="slide tall" id="s29">
+      <p class="kicker">Étape 6 — Après la campagne</p>
+      <h2>Historique et exports</h2>
+      <p>Tableau de toutes les inscriptions : recherche, pagination, participation, exports pour impression ou analyse — clôture du cycle « réservation » côté reporting.</p>
+      <figure class="shot">
+        <figcaption>Interface — historique</figcaption>
+        <img src="screenshots/11-historique.png" alt="Historique" onerror="this.style.display='none'; this.parentElement.classList.add('missing'); this.parentElement.querySelector('.ph').style.display='block';" />
+        <div class="placeholder ph" style="display:none">Capture : <code>npm run capture</code></div>
+      </figure>
+    </section>
+
+    <!-- 30 -->
+    <section class="slide tall" id="s30">
+      <p class="kicker">Système de points</p>
+      <h2>Ajout des points à la clôture</h2>
+      <p>Les points ne sont pas donnés à l’inscription : ils sont <strong>crédités une fois</strong> la sélection clôturée, pour les dossiers <code>SELECTIONNE</code> ou <code>FINAL</code>, selon les formules ci-dessous (type d’excursion + barème). Le champ <code>pointsCreditedAt</code> empêche un double crédit.</p>
+      <div class="formula-grid">
+        <div class="formula-box"><strong>Célibataire (SINGLE)</strong> Points = points agent du type d’activité.</div>
+        <div class="formula-box"><strong>Couple (COUPLE)</strong> Points agent + points conjoint si marié.</div>
+        <div class="formula-box"><strong>Famille (FAMILY)</strong> Comme couple + nombre d’enfants × points par enfant.</div>
+      </div>
+      <p class="muted" style="margin-top:0.75rem;">Chaque mouvement est tracé dans l’historique des points (montant, motif, administrateur).</p>
+    </section>
+
+    <!-- 31 -->
+    <section class="slide dark" id="s31">
+      <p class="kicker">Conclusion</p>
+      <h2>Une chaîne complète, maîtrisée</h2>
+      <p style="max-width:40rem; color:rgba(255,255,255,0.9);">
+        De la <strong>connexion</strong> à la <strong>clôture</strong> et au <strong>reporting</strong>, la plateforme relie le service social, les données et les collaborateurs sur un même outil — pour gagner en efficacité, en équité et en traçabilité.
+      </p>
+      <p style="margin-top:1.5rem; font-size:0.9rem; opacity:0.8;">Merci de votre attention.</p>
+    </section>
+
+  </div>
+
+  <div class="toolbar" role="navigation" aria-label="Navigation">
+    <button type="button" id="prev">◀ Préc.</button>
+    <span id="counter">1 / …</span>
+    <button type="button" id="next">Suiv. ▶</button>
+  </div>
+
+  <script>
+    (function () {
+      const slides = Array.from(document.querySelectorAll(".slide"));
+      let i = 0;
+      function show(idx) {
+        i = Math.max(0, Math.min(idx, slides.length - 1));
+        slides[i].scrollIntoView({ behavior: "smooth", block: "start" });
+        document.getElementById("counter").textContent = i + 1 + " / " + slides.length;
+        history.replaceState(null, "", "#" + slides[i].id);
+      }
+      document.getElementById("counter").textContent = "1 / " + slides.length;
+      document.getElementById("prev").onclick = function () { show(i - 1); };
+      document.getElementById("next").onclick = function () { show(i + 1); };
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") { e.preventDefault(); show(i + 1); }
+        if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); show(i - 1); }
+        if (e.key === "Home") { e.preventDefault(); show(0); }
+        if (e.key === "End") { e.preventDefault(); show(slides.length - 1); }
+      });
+      const obs = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) {
+          if (en.isIntersecting) {
+            const idx = slides.indexOf(en.target);
+            if (idx >= 0) {
+              i = idx;
+              document.getElementById("counter").textContent = i + 1 + " / " + slides.length;
+            }
+          }
+        });
+      }, { threshold: 0.5 });
+      slides.forEach(function (s) { obs.observe(s); });
+      if (location.hash) {
+        const el = document.querySelector(location.hash);
+        if (el && slides.indexOf(el) >= 0) setTimeout(function () { show(slides.indexOf(el)); }, 80);
+      }
+    })();
+  </script>
+</body>
+</html>

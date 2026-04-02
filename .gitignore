@@ -30,3 +30,6 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Présentation — exports PDF CDC (non référencés par index.html)
+presentation/cdc-pages/
