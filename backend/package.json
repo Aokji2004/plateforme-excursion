@@ -15,7 +15,8 @@
     "add:family": "ts-node-dev --transpile-only src/addFamilyData.ts",
     "add:more": "ts-node-dev --transpile-only src/addMoreData.ts",
     "export-data": "ts-node-dev --transpile-only src/scripts/export-data.ts",
-    "import-data": "ts-node-dev --transpile-only src/scripts/import-data.ts"
+    "import-data": "ts-node-dev --transpile-only src/scripts/import-data.ts",
+    "seed:demo-excursions": "ts-node-dev --transpile-only src/scripts/run-seed-demo-excursions.ts"
   },
   "keywords": [],
   "author": "",

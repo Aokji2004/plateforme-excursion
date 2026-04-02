@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import { prisma } from "./db";
+import { ensureDemoExcursions } from "./seedDemoExcursions";
 
 dotenv.config();
 
@@ -75,6 +76,8 @@ async function main() {
   } else {
     console.log("Types d’activité déjà présents :", typeCount, "(inchangé).");
   }
+
+  await ensureDemoExcursions();
 }
 
 main()

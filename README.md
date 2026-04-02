@@ -276,7 +276,8 @@ Le système de sélection automatique fonctionne comme suit :
 - `npm run dev` : Démarre le serveur en mode développement
 - `npm run build` : Compile TypeScript
 - `npm run start` : Démarre le serveur en production
-- `npm run seed` : Crée l'utilisateur admin initial
+- `npm run seed` : Admin (si absent), types d’activité par défaut (si table vide), **15 excursions démo** (si aucune excursion en base)
+- `npm run seed:demo-excursions` : uniquement le lot d’excursions démo (sans effet si des excursions existent déjà)
 
 ### Frontend
 - `npm run dev` : Démarre le serveur de développement
